@@ -101,5 +101,6 @@ export interface RoomBooking {
   equipmentsNeeded: string[];
   status: 'confirmed' | 'checked_in' | 'cancelled' | 'completed';
   checkedInAt?: string;
+  checkedOutAt?: string;
   createdAt: string;
 }
