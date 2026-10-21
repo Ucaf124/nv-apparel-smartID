@@ -507,32 +507,14 @@ export default function App() {
       return;
     }
 
-    // 3. Process Room Booking
+    // 3. Process Room Booking (CODE MỚI CHUẨN XỊN: CHỈ LẤY THÔNG TIN ĐIỀN VÀO FORM)
     if (scannerMode?.type === 'room_booking') {
-      const room = PRESET_ROOMS.find(r => r.id === scannerMode.roomId) || PRESET_ROOMS[0];
-
-      const newBooking: RoomBooking = {
-        id: `booking_${Date.now()}`,
-        roomId: room.id,
-        roomName: room.name,
-        bookedByCode: code,
-        bookedByName: empName,
-        department: empDept,
-        phone: matchedEmployee?.Phone || '',
-        title: `Cuộc họp của ${empName} (${empDept})`,
-        date: scannerMode.date,
-        startTime: '10:00',
-        endTime: '11:00',
-        participantsCount: 8,
-        equipmentsNeeded: ['Máy chiếu 4K', 'Bảng kính'],
-        status: 'confirmed',
-        createdAt: new Date().toISOString()
-      };
-
-      setBookings(prev => [newBooking, ...prev]);
-      saveRoomBookingToCloud(newBooking).catch(console.error);
       soundFX.playScanSuccess();
-      showToast('success', 'Đặt phòng họp thành công!', `${room.name} đã được đặt cho ${empName} (10:00 - 11:00)`);
+      showToast(
+        'success', 
+        'Nhận diện thẻ thành công!', 
+        `Đã lấy thông tin: ${empName} (${code} - ${empDept}). Vui lòng nhập nội dung và chọn giờ họp.`
+      );
       setScannerOpen(false);
       return;
     }
