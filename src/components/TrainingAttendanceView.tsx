@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { AttendanceRecord, Employee, TrainingSession } from '../types';
 import { exportAttendanceToExcel } from '../utils/exportExcel';
+import { deleteAttendanceRecordInCloud } from '../services/firebaseSync';
+import { soundFX } from '../utils/audio';
 
 interface TrainingAttendanceViewProps {
   employees: Employee[];
@@ -104,9 +106,19 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     exportAttendanceToExcel(currentSession, currentRecords);
   };
 
-  const handleDeleteRecord = (id: string) => {
-    if (confirm('Bạn có chắc muốn xoá lượt điểm danh này không?')) {
-      setAttendanceRecords(prev => prev.filter(r => r.id !== id));
+  const handleDeleteRecord = async (record: AttendanceRecord) => {
+    if (confirm(`Bạn có chắc muốn xoá lượt điểm danh của "${record.employeeName}" (${record.employeeCode})?`)) {
+      try {
+        // 1. Xóa trong state giao diện
+        setAttendanceRecords(prev => prev.filter(r => r.id !== record.id));
+        
+        // 2. XÓA VĨNH VIỄN TRÊN CLOUD FIREBASE
+        await deleteAttendanceRecordInCloud(record.id);
+        
+        soundFX.playScanSuccess();
+      } catch (err) {
+        console.error('Lỗi khi xóa điểm danh trên cloud:', err);
+      }
     }
   };
 
@@ -339,7 +351,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                     </div>
 
                     <button
-                      onClick={() => handleDeleteRecord(r.id)}
+                      onClick={() => handleDeleteRecord(r)}
                       title="Xoá lượt này"
                       className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors shrink-0"
                     >
@@ -413,7 +425,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                       </td>
                       <td className="p-3 text-center">
                         <button
-                          onClick={() => handleDeleteRecord(r.id)}
+                          onClick={() => handleDeleteRecord(r)}
                           title="Xoá lượt này"
                           className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                         >
