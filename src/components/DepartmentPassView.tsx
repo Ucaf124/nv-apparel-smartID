@@ -25,6 +25,7 @@ import { DepartmentPassRecord, Employee } from '../types';
 import { COMMON_DEPARTMENTS, COMMON_MOVE_REASONS } from '../data/mockEmployees';
 import { exportDepartmentPassToExcel } from '../utils/exportExcel';
 import { soundFX } from '../utils/audio';
+import { updateDepartmentPassInCloud } from '../services/firebaseSync';
 
 interface DepartmentPassViewProps {
   employees: Employee[];
@@ -74,19 +75,28 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
     });
   };
 
-  const handleMarkReturned = (passId: string) => {
-    const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    soundFX.playScanSuccess();
-    setPasses(prev => prev.map(p => {
-      if (p.id === passId) {
-        return {
-          ...p,
-          status: 'returned',
-          returnTime: now
-        };
-      }
-      return p;
-    }));
+  const handleMarkReturned = async (passId: string) => {
+  const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  soundFX.playScanSuccess();
+
+  const targetPass = passes.find(p => p.id === passId);
+    if (!targetPass) return;
+  
+    const updatedPass: DepartmentPassRecord = {
+      ...targetPass,
+      status: 'returned',
+      returnTime: now
+    };
+  
+    // 1. Cập nhật state giao diện
+    setPasses(prev => prev.map(p => p.id === passId ? updatedPass : p));
+  
+    // 2. LƯU LÊN MÁY CHỦ CLOUD FIREBASE ĐỂ KHÔNG BỊ HIỆN LẠI "ĐANG LƯU TRÚ"
+    try {
+      await updateDepartmentPassInCloud(updatedPass);
+    } catch (err) {
+      console.error('Lỗi khi cập nhật check-out trên cloud:', err);
+    }
   };
 
   const handleExport = () => {
