@@ -447,7 +447,7 @@ export default function App() {
       const targetSession = sessions.find(s => s.id === sessionId) || sessions[0];
 
       const alreadyChecked = attendanceRecords.some(
-        r => r.sessionId === targetSession.id && r.employeeCode.toLowerCase() === code.toLowerCase()
+        r => r.sessionId === targetSession.id && r.employeeCode.trim().toLowerCase() === code.trim().toLowerCase()
       );
 
       if (alreadyChecked) {
