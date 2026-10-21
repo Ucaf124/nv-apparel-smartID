@@ -643,7 +643,7 @@ export default function App() {
             <CalendarDays className="w-4 h-4" />
             <span>Đặt Phòng Họp (Hạ Long & Bà Nà)</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-mono font-bold">
-              {bookings.filter(b => b.status !== 'cancelled').length}
+              {bookings.filter(b => b.status !== 'cancelled' && b.status !== 'completed').length}
             </span>
           </button>
 
