@@ -1,0 +1,33 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Application settings (e.g. company logo)
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+
+    // Factory employees roster & photos
+    match /employees/{employeeCode} {
+      allow read, write: if true;
+    }
+
+    // Training sessions & attendance
+    match /training_sessions/{sessionId} {
+      allow read, write: if true;
+    }
+    match /attendance_records/{recordId} {
+      allow read, write: if true;
+    }
+
+    // Department passes
+    match /department_passes/{passId} {
+      allow read, write: if true;
+    }
+
+    // Room bookings
+    match /room_bookings/{bookingId} {
+      allow read, write: if true;
+    }
+  }
+}

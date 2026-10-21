@@ -1,0 +1,136 @@
+{
+  "entities": {
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Global application configuration such as company logo",
+      "type": "object",
+      "properties": {
+        "customLogoUrl": {
+          "type": "string",
+          "description": "Base64 or URL of the custom company logo"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp of last update"
+        }
+      }
+    },
+    "Employee": {
+      "title": "Employee",
+      "description": "Employee profile and badge barcode data",
+      "type": "object",
+      "properties": {
+        "Employee_Code": {
+          "type": "string",
+          "description": "Unique employee barcode number"
+        },
+        "Full_Name": { "type": "string" },
+        "Name": { "type": "string" },
+        "Surname": { "type": "string" },
+        "Pre_Name": { "type": "string" },
+        "Position_Eng": { "type": "string" },
+        "Department_Eng": { "type": "string" },
+        "Division_Eng": { "type": "string" },
+        "Factory_Code": { "type": "string" },
+        "Section_Eng": { "type": "string" },
+        "Start_Date": { "type": "string" },
+        "Photo_Url": { "type": "string" },
+        "No": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["Employee_Code"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Training attendance check-in records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "employeeCode": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "department": { "type": "string" },
+        "factory": { "type": "string" },
+        "position": { "type": "string" },
+        "checkInTime": { "type": "string" },
+        "deviceInfo": { "type": "string" }
+      },
+      "required": ["id", "employeeCode", "checkInTime"]
+    },
+    "TrainingSession": {
+      "title": "TrainingSession",
+      "description": "Active training sessions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "topic": { "type": "string" },
+        "trainer": { "type": "string" },
+        "location": { "type": "string" },
+        "date": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "topic"]
+    },
+    "DepartmentPass": {
+      "title": "DepartmentPass",
+      "description": "Inter-department transit pass records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "employeeCode": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "fromDept": { "type": "string" },
+        "toDept": { "type": "string" },
+        "reason": { "type": "string" },
+        "checkInTime": { "type": "string" },
+        "checkOutTime": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "employeeCode", "fromDept", "toDept"]
+    },
+    "RoomBooking": {
+      "title": "RoomBooking",
+      "description": "Meeting room reservations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "roomId": { "type": "string" },
+        "roomName": { "type": "string" },
+        "date": { "type": "string" },
+        "timeSlot": { "type": "string" },
+        "bookedByCode": { "type": "string" },
+        "bookedByName": { "type": "string" },
+        "bookedByDept": { "type": "string" },
+        "meetingTitle": { "type": "string" },
+        "bookedAt": { "type": "string" }
+      },
+      "required": ["id", "roomId", "date", "timeSlot", "bookedByCode"]
+    }
+  },
+  "firestore": {
+    "/settings/{settingId}": {
+      "schema": "AppSettings",
+      "description": "Application settings including company logo"
+    },
+    "/employees/{employeeCode}": {
+      "schema": "Employee",
+      "description": "Full roster of factory workers"
+    },
+    "/training_sessions/{sessionId}": {
+      "schema": "TrainingSession",
+      "description": "Training sessions"
+    },
+    "/attendance_records/{recordId}": {
+      "schema": "AttendanceRecord",
+      "description": "Training attendance check-in records"
+    },
+    "/department_passes/{passId}": {
+      "schema": "DepartmentPass",
+      "description": "Department transit passes"
+    },
+    "/room_bookings/{bookingId}": {
+      "schema": "RoomBooking",
+      "description": "Meeting room reservations"
+    }
+  }
+}
