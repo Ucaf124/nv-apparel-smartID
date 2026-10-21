@@ -1,6 +1,6 @@
 {
-  "name": "AI Studio Workspace",
-  "description": "Không gian sáng tạo và phát triển ứng dụng web thông minh.",
+  "name": "NVA Smart ID",
+  "description": "Hệ Thống Quét Barcode Thẻ & Check-In NV Apparel",
   "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
