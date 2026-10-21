@@ -353,7 +353,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               {/* Action buttons on card */}
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-xs text-slate-500 font-medium">
-                  {roomBookingsToday.filter(b => b.status !== 'completed').length} lượt đặt ngày {selectedDate}
+                  {roomBookingsToday.filter(b => b.status !== 'cancelled' && b.status !== 'completed').length} cuộc họp chưa xong
                 </span>
 
                 <button
@@ -387,7 +387,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
           </div>
 
           <span className="text-xs text-slate-500 font-medium">
-            {roomBookings.filter(b => b.status !== 'cancelled').length} lượt đặt trước
+            {roomBookings.filter(b => b.status !== 'cancelled' && b.status !== 'completed').length} cuộc họp cần diễn ra
           </span>
         </div>
 
