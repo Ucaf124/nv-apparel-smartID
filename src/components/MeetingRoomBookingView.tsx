@@ -239,7 +239,22 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
         {PRESET_ROOMS.map(room => {
           const isSelected = selectedRoomId === room.id;
           const roomBookingsToday = dateBookings.filter(b => b.roomId === room.id && b.status !== 'cancelled');
-          const isCurrentlyOccupied = isToday && roomBookingsToday.some(b => b.startTime <= nowTime && b.endTime >= nowTime);
+          // Tính giờ hiện tại theo chuẩn HH:mm 24h
+          const currentHours = new Date().getHours().toString().padStart(2, '0');
+          const currentMinutes = new Date().getMinutes().toString().padStart(2, '0');
+          const currentHM = `${currentHours}:${currentMinutes}`;
+          
+          // Phòng bận khi: Trong ngày hôm nay, có cuộc họp ĐÃ NHẬN PHÒNG (chưa quá giờ kết thúc), hoặc đang nằm trong khung giờ họp
+          const activeMeeting = isToday ? roomBookingsToday.find(b => {
+            if (b.status === 'cancelled') return false;
+            // Nếu đã check-in và chưa hết giờ kết thúc -> Phòng đang bận
+            if (b.status === 'checked_in' && currentHM <= b.endTime) return true;
+            // Hoặc đang trong khung giờ họp
+            if (currentHM >= b.startTime && currentHM <= b.endTime) return true;
+            return false;
+          }) : null;
+          
+          const isCurrentlyOccupied = !!activeMeeting;
 
           return (
             <div
@@ -259,7 +274,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                       : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                   }`}>
                     <span className={`w-2 h-2 rounded-full ${isCurrentlyOccupied ? 'bg-rose-600 animate-ping' : 'bg-emerald-600'}`}></span>
-                    {isCurrentlyOccupied ? 'ĐANG CÓ HỌP' : 'HIỆN ĐANG TRỐNG'}
+                    <span>{isCurrentlyOccupied ? `ĐANG SỬ DỤNG (${activeMeeting?.startTime} - ${activeMeeting?.endTime})` : 'HIỆN ĐANG TRỐNG'}</span>
                   </div>
 
                   <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
@@ -300,12 +315,15 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    setModalRoomId(room.id);
+                    setShowBookingModal(true);
+                    // Mở scanner để quét thẻ điền tự động vào form đặt phòng
                     onOpenScannerForRoomBooking(room.id, selectedDate);
                   }}
                   className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
                 >
                   <ScanLine className="w-3.5 h-3.5" />
-                  Quét Thẻ Đặt Ngay
+                  <span>Quét Thẻ Đặt Phòng</span>
                 </button>
               </div>
             </div>
