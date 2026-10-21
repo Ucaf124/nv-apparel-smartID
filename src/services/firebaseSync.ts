@@ -268,6 +268,14 @@ export async function clearAttendanceRecordsInCloud() {
   }
 }
 
+export async function deleteAttendanceRecordInCloud(recordId: string) {
+  if (isQuotaExhausted) return;
+  try {
+    await deleteDoc(doc(db, 'attendance_records', recordId));
+  } catch (err) {
+    handleFirebaseError('deleteAttendanceRecordInCloud', err);
+  }
+}
 // ======================= DEPARTMENT PASSES =======================
 
 export function subscribeToDepartmentPasses(callback: (passes: DepartmentPassRecord[]) => void) {
@@ -294,6 +302,23 @@ export async function saveDepartmentPassToCloud(pass: DepartmentPassRecord) {
   }
 }
 
+export async function updateDepartmentPassInCloud(pass: DepartmentPassRecord) {
+  if (isQuotaExhausted) return;
+  try {
+    await setDoc(doc(db, 'department_passes', pass.id), pass, { merge: true });
+  } catch (err) {
+    handleFirebaseError('updateDepartmentPassInCloud', err);
+  }
+}
+
+export async function deleteDepartmentPassInCloud(passId: string) {
+  if (isQuotaExhausted) return;
+  try {
+    await deleteDoc(doc(db, 'department_passes', passId));
+  } catch (err) {
+    handleFirebaseError('deleteDepartmentPassInCloud', err);
+  }
+}
 // ======================= MEETING ROOM BOOKINGS =======================
 
 export function subscribeToRoomBookings(callback: (bookings: RoomBooking[]) => void) {
