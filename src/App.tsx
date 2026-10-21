@@ -67,12 +67,13 @@ export default function App() {
       const saved = localStorage.getItem('smartfactory_prod_roster');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        // Nếu bộ nhớ tạm có đủ từ 5000 người trở lên thì mới lấy, nếu ít hơn 5000 người thì bỏ qua lấy gốc!
+        if (Array.isArray(parsed) && parsed.length >= 5000) return parsed;
       }
     } catch {
       // ignore
     }
-    // MẶC ĐỊNH LẤY TOÀN BỘ 5.379 NGƯỜI TỪ INITIAL_EMPLOYEES
+    // MẶC ĐỊNH LUÔN LẤY ĐỦ 100% 5.379 NGƯỜI
     return INITIAL_EMPLOYEES;
   });
 
@@ -235,15 +236,14 @@ export default function App() {
       }
     });
 
-    // Listen to Employees Roster (Đồng bộ cả khi có dữ liệu lẫn khi bị xóa về 0)
-  const unsubEmployees = subscribeToEmployees((cloudEmployees) => {
-    setEmployees(cloudEmployees || []);
-    if (cloudEmployees && cloudEmployees.length > 0) {
-      localStorage.setItem('smartfactory_prod_roster', JSON.stringify(cloudEmployees));
-    } else {
-      localStorage.removeItem('smartfactory_prod_roster');
-    }
-  });
+    // Listen to Employees Roster (CHỐNG NHÁY VÀ CHỐNG ĐÈ MẤT 4.000 NGƯỜI)
+    const unsubEmployees = subscribeToEmployees((cloudEmployees) => {
+      // Chỉ nhận từ Cloud nếu Cloud có đầy đủ (từ 5.000 người trở lên), không nhận nếu Cloud bị thiếu!
+      if (cloudEmployees && cloudEmployees.length >= 5000) {
+        setEmployees(cloudEmployees);
+        localStorage.setItem('smartfactory_prod_roster', JSON.stringify(cloudEmployees));
+      }
+    });
 
     // Listen to Training Sessions
     const unsubSessions = subscribeToTrainingSessions((cloudSessions) => {
