@@ -92,6 +92,55 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     return (h1 * 60 + m1) - (h2 * 60 + m2);
   };
 
+  // HÀM KIỂM TRA ĐIỀU KIỆN ĐƯỢC PHÉP NHẬN PHÒNG
+  const checkCanCheckIn = (targetBooking: RoomBooking): { canCheckIn: boolean; reason?: string } => {
+    // 1. Kiểm tra ngày
+    if (!isToday) {
+      return { canCheckIn: false, reason: 'Chỉ được nhận phòng trong đúng ngày diễn ra cuộc họp!' };
+    }
+
+    // 2. Quy tắc 5 phút: Không được nhận phòng sớm quá 5 phút so với giờ bắt đầu
+    const diffToStart = getMinutesDiff(targetBooking.startTime, currentTimeStr);
+    if (diffToStart > 5) {
+      return { 
+        canCheckIn: false, 
+        reason: `Chưa đến giờ nhận phòng! Cuộc họp bắt đầu lúc ${targetBooking.startTime}. Bạn chỉ có thể nhận phòng từ lúc trước đó 5 phút (còn ${diffToStart} phút nữa).` 
+      };
+    }
+
+    // 3. Quy tắc thứ tự: Tìm tất cả cuộc họp trong cùng phòng trước cuộc họp này
+    const priorBookings = roomBookings
+      .filter(b => b.status !== 'cancelled' && b.id !== targetBooking.id)
+      .filter(b => b.startTime < targetBooking.startTime);
+
+    // Nếu có cuộc họp trước đó mà CHƯA HOÀN THÀNH (chưa trả phòng)
+    const pendingPrior = priorBookings.find(b => b.status !== 'completed');
+    if (pendingPrior) {
+      if (pendingPrior.status === 'checked_in') {
+        return { 
+          canCheckIn: false, 
+          reason: `Phòng hiện đang có cuộc họp "${pendingPrior.title}" (${pendingPrior.startTime} - ${pendingPrior.endTime}) đang sử dụng. Vui lòng đợi người trước trả phòng!` 
+        };
+      } else {
+        return { 
+          canCheckIn: false, 
+          reason: `Cuộc họp trước đó "${pendingPrior.title}" (${pendingPrior.startTime} - ${pendingPrior.endTime}) chưa bắt đầu/chưa xong. Không được nhận phòng nhảy cóc!` 
+        };
+      }
+    }
+
+    // 4. Kiểm tra xem phòng có cuộc họp nào khác đang chiếm không
+    const currentlyUsing = roomBookings.find(b => b.id !== targetBooking.id && b.status === 'checked_in');
+    if (currentlyUsing) {
+      return { 
+        canCheckIn: false, 
+        reason: `Phòng đang được sử dụng bởi "${currentlyUsing.title}". Chỉ khi người này bấm Trả Phòng thì bạn mới được nhận phòng!` 
+      };
+    }
+
+    return { canCheckIn: true };
+  };
+  
   // HÀM TRẢ PHÒNG (CHECK-OUT)
   const handleCheckOut = async (booking: RoomBooking) => {
     const now = new Date();
@@ -273,18 +322,19 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
           let overdueMinutes = 0;
 
           if (isToday) {
-            // Tìm cuộc họp đã nhận phòng nhưng chưa trả phòng (hoặc đang trong giờ)
-            activeMeeting = roomBookingsToday.find(b => {
-              if (b.status === 'completed') return false;
-              // Nếu đã check-in nhưng chưa trả phòng
-              if (b.status === 'checked_in') return true;
-              // Hoặc chưa check-in nhưng giờ hiện tại đã lọt vào khung giờ họp
-              if (currentTimeStr >= b.startTime && currentTimeStr <= b.endTime) return true;
-              return false;
-            });
+            // ƯU TIÊN 1: Cuộc họp đang CHECK-IN nhận phòng thực tế
+            activeMeeting = roomBookingsToday.find(b => b.status === 'checked_in');
 
-            // Kiểm tra xem có bị quá giờ kết thúc không
-            if (activeMeeting && currentTimeStr > activeMeeting.endTime) {
+            // NẾU KHÔNG CÓ AI CHECK-IN: Tìm cuộc họp đang trong khung giờ
+            if (!activeMeeting) {
+              activeMeeting = roomBookingsToday.find(b => {
+                if (b.status === 'completed' || b.status === 'cancelled') return false;
+                return currentTimeStr >= b.startTime && currentTimeStr <= b.endTime;
+              });
+            }
+
+            // Kiểm tra quá giờ
+            if (activeMeeting && activeMeeting.status === 'checked_in' && currentTimeStr > activeMeeting.endTime) {
               isOverdue = true;
               overdueMinutes = getMinutesDiff(currentTimeStr, activeMeeting.endTime);
             }
@@ -476,15 +526,31 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                     {/* Booking actions */}
                     <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end border-t md:border-t-0 pt-2 md:pt-0 border-slate-200">
                       {/* NÚT QUÉT THẺ NHẬN PHÒNG (KHI CHƯA CHECK-IN) */}
-                      {!isCheckedIn && !isCompleted && (
-                        <button
-                          onClick={() => onOpenScannerForRoomCheckIn(booking.id)}
-                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
-                        >
-                          <ScanLine className="w-3.5 h-3.5" />
-                          Quét Thẻ Nhận Phòng
-                        </button>
-                      )}
+                      {!isCheckedIn && !isCompleted && (() => {
+                        const checkResult = checkCanCheckIn(booking);
+                        
+                        return (
+                          <button
+                            onClick={() => {
+                              if (!checkResult.canCheckIn) {
+                                soundFX.playError();
+                                alert(`⚠️ KHÔNG THỂ NHẬN PHÒNG LÚC NÀY:\n\n${checkResult.reason}`);
+                                return;
+                              }
+                              onOpenScannerForRoomCheckIn(booking.id);
+                            }}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm ${
+                              checkResult.canCheckIn 
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95' 
+                                : 'bg-slate-200 text-slate-500 hover:bg-slate-300 border border-slate-300'
+                            }`}
+                            title={checkResult.canCheckIn ? 'Bấm để quét thẻ nhận phòng' : checkResult.reason}
+                          >
+                            <ScanLine className="w-3.5 h-3.5" />
+                            <span>{checkResult.canCheckIn ? 'Quét Thẻ Nhận Phòng' : 'Chưa Được Nhận Phòng'}</span>
+                          </button>
+                        );
+                      })()}
 
                       {/* NÚT XÁC NHẬN TRẢ PHÒNG (KHI ĐANG SỬ DỤNG) */}
                       {isCheckedIn && (
