@@ -24,6 +24,7 @@ import { AttendanceRecord, Employee, TrainingSession, maskEmployeeCode } from '.
 import { exportAttendanceToExcel } from '../utils/exportExcel';
 import { deleteAttendanceRecordInCloud } from '../services/firebaseSync';
 import { soundFX } from '../utils/audio';
+import { saveTrainingSessionToCloud } from '../services/firebaseSync';
 
 interface TrainingAttendanceViewProps {
   employees: Employee[];
@@ -87,8 +88,14 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
       status: 'active'
     };
 
+    // 1. Cập nhật state giao diện
     setSessions([newSession, ...sessions]);
     setActiveSessionId(newSession.id);
+
+    // 2. ĐẨY NGAY LÊN MÁY CHỦ CLOUD ĐỂ ĐIỆN THOẠI CŨNG NHẬN ĐƯỢC
+    saveTrainingSessionToCloud(newSession).catch(console.error);
+
+    soundFX.playScanSuccess();
     setShowCreateModal(false);
     setNewTitle('');
     setNewInstructor('');
