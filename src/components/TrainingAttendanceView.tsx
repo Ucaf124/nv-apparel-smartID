@@ -11,17 +11,14 @@ import {
   Users, 
   Clock, 
   Calendar, 
-  Building, 
   Search, 
   CheckCircle2, 
-  AlertCircle,
-  Trash2,
-  Filter,
-  Check,
-  ShieldCheck,
-  UserCheck,
-  MapPin,
-  Sparkles
+  Trash2, 
+  Filter, 
+  MapPin, 
+  Image as ImageIcon, 
+  Keyboard, 
+  Camera 
 } from 'lucide-react';
 import { AttendanceRecord, Employee, TrainingSession } from '../types';
 import { exportAttendanceToExcel } from '../utils/exportExcel';
@@ -239,39 +236,51 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
         )}
       </div>
 
-      {/* Attendance Stats Cards */}
+      {/* 4 THẺ THỐNG KÊ MỚI: TỔNG SỐ - CAMERA TRỰC TIẾP - CHỤP ẢNH THẺ - NHẬP MÃ SỐ */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Thẻ 1: Tổng số người đã điểm danh */}
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
           <span className="text-xs text-slate-500 block font-semibold">Đã Điểm Danh</span>
           <span className="text-2xl font-black text-blue-600 mt-1 block">
             {currentRecords.length}
           </span>
-          <span className="text-[11px] text-slate-400">Công nhân viên</span>
+          <span className="text-[11px] text-slate-400">Tổng công nhân viên</span>
         </div>
-
+      
+        {/* Thẻ 2: Quét Camera Trực Tiếp */}
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
-          <span className="text-xs text-slate-500 block font-semibold">Quét Barcode Thẻ</span>
+          <span className="text-xs text-slate-500 block font-semibold flex items-center gap-1">
+            <Camera className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Camera Quét Thẻ</span>
+          </span>
           <span className="text-2xl font-black text-emerald-600 mt-1 block">
-            {currentRecords.filter(r => r.method === 'camera_scan').length}
+            {currentRecords.filter(r => r.method === 'camera_scan' || !r.method).length}
           </span>
-          <span className="text-[11px] text-slate-400">Xác thực mã vạch</span>
+          <span className="text-[11px] text-slate-400">Trực tiếp thời gian thực</span>
         </div>
-
+      
+        {/* Thẻ 3: Chụp / Tải Ảnh Thẻ (THAY CHO THẺ PHÒNG BAN DỰ CŨ) */}
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
-          <span className="text-xs text-slate-500 block font-semibold">Phòng Ban Dự</span>
+          <span className="text-xs text-slate-500 block font-semibold flex items-center gap-1">
+            <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Chụp / Tải Ảnh Thẻ</span>
+          </span>
           <span className="text-2xl font-black text-indigo-600 mt-1 block">
-            {availableDepts.length}
+            {currentRecords.filter(r => r.method === 'photo_scan').length}
           </span>
-          <span className="text-[11px] text-slate-400">Đơn vị tham gia</span>
+          <span className="text-[11px] text-slate-400">Giải mã barcode từ ảnh</span>
         </div>
-
+      
+        {/* Thẻ 4: Nhập Mã Số Thủ Công (THAY CHO THẺ CHỮ KÝ GIẤY CŨ) */}
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
-          <span className="text-xs text-slate-500 block font-semibold">Chữ Ký Giấy</span>
-          <span className="text-sm font-bold text-emerald-700 mt-2 block flex items-center gap-1">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            Đã Số Hóa
+          <span className="text-xs text-slate-500 block font-semibold flex items-center gap-1">
+            <Keyboard className="w-3.5 h-3.5 text-purple-600" />
+            <span>Nhập Mã Số Thẻ</span>
           </span>
-          <span className="text-[11px] text-slate-400">Không cần ký tay</span>
+          <span className="text-2xl font-black text-purple-600 mt-1 block">
+            {currentRecords.filter(r => r.method === 'manual_entry').length}
+          </span>
+          <span className="text-[11px] text-slate-400">Nhập thủ công bằng tay</span>
         </div>
       </div>
 
@@ -418,10 +427,19 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                         {r.scanTime}
                       </td>
                       <td className="p-3">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          {r.method === 'camera_scan' ? 'Barcode Thẻ' : 'Nhập tay'}
-                        </span>
+                        {r.method === 'photo_scan' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-semibold">
+                            <ImageIcon className="w-3 h-3" /> Chụp ảnh thẻ
+                          </span>
+                        ) : r.method === 'manual_entry' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-semibold">
+                            <Keyboard className="w-3 h-3" /> Nhập mã số
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Camera quét thẻ
+                          </span>
+                        )}
                       </td>
                       <td className="p-3 text-center">
                         <button
