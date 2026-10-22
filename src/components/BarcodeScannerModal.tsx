@@ -58,24 +58,37 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isCoolingDownRef = useRef<boolean>(false);
   const containerId = 'barcode-scanner-viewport';
 
   const handleFoundCode = (decodedText: string, scanMethod: 'camera_scan' | 'photo_scan' | 'manual_entry' = 'camera_scan') => {
     const cleanCode = decodedText.trim();
     if (!cleanCode) return;
-  
+
+    // NẾU ĐANG TRONG THỜI GIAN NGHỈ (COOLDOWN) THÌ BỎ QUA, KHÔNG QUÉT TIẾP
+    if (isCoolingDownRef.current && scanMethod === 'camera_scan') {
+      return;
+    }
+
+    // Bật khóa camera trong 2.5 giây để người dùng kịp rút thẻ ra
+    if (scanMethod === 'camera_scan') {
+      isCoolingDownRef.current = true;
+      setTimeout(() => {
+        isCoolingDownRef.current = false;
+      }, 2500); // 2.5 giây nghỉ giữa 2 lần quét
+    }
+
     soundFX.playScanSuccess();
-  
+
     const matched = employees.find(
       e => e.Employee_Code.trim().toLowerCase() === cleanCode.toLowerCase()
     );
-  
+
     setLastScannedResult({
       code: cleanCode,
       employee: matched
     });
-  
-    // Gửi kèm phương thức quét ra ngoài
+
     onScanSuccess(cleanCode, matched, scanMethod);
   };
 
@@ -117,7 +130,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
       html5QrCodeRef.current = html5QrCode;
 
       const config = {
-        fps: 15,
+        fps: 6,
         qrbox: { width: 280, height: 160 },
         aspectRatio: 1.0
       };
