@@ -28,7 +28,7 @@ import { Employee } from '../types';
 interface BarcodeScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onScanSuccess: (scannedCode: string, matchedEmployee?: Employee) => void;
+  onScanSuccess: (scannedCode: string, matchedEmployee?: Employee, method?: 'camera_scan' | 'photo_scan' | 'manual_entry') => void;
   title?: string;
   subtitle?: string;
   employees: Employee[];
@@ -60,22 +60,23 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const containerId = 'barcode-scanner-viewport';
 
-  const handleFoundCode = (decodedText: string) => {
+  const handleFoundCode = (decodedText: string, scanMethod: 'camera_scan' | 'photo_scan' | 'manual_entry' = 'camera_scan') => {
     const cleanCode = decodedText.trim();
     if (!cleanCode) return;
-
+  
     soundFX.playScanSuccess();
-
+  
     const matched = employees.find(
       e => e.Employee_Code.trim().toLowerCase() === cleanCode.toLowerCase()
     );
-
+  
     setLastScannedResult({
       code: cleanCode,
       employee: matched
     });
-
-    onScanSuccess(cleanCode, matched);
+  
+    // Gửi kèm phương thức quét ra ngoài
+    onScanSuccess(cleanCode, matched, scanMethod);
   };
 
   const startCamera = async () => {
@@ -237,7 +238,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
       }
 
       const decodedText = await scanner.scanFile(file, true);
-      handleFoundCode(decodedText);
+      handleFoundCode(decodedText, 'photo_scan');
     } catch (err: unknown) {
       soundFX.playError();
       setScannerError('Không tìm thấy mã vạch rõ nét trong ảnh này. Vui lòng chụp thẳng góc mã vạch hoặc nhập mã nhân viên bằng tay.');
@@ -250,7 +251,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualCode.trim()) return;
-    handleFoundCode(manualCode.trim());
+    handleFoundCode(manualCode.trim(), 'manual_entry');
     setManualCode('');
   };
 
