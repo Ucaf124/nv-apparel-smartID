@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { AttendanceRecord, Employee, TrainingSession, maskEmployeeCode } from '../types';
 import { exportAttendanceToExcel } from '../utils/exportExcel';
-import { deleteAttendanceRecordInCloud } from '../services/firebaseSync';
+import { deleteAttendanceRecordInCloud, deleteTrainingSessionInCloud, saveTrainingSessionToCloud } from '../services/firebaseSync';
 import { soundFX } from '../utils/audio';
 import { saveTrainingSessionToCloud } from '../services/firebaseSync';
 
@@ -156,6 +156,45 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     exportAttendanceToExcel(currentSession, currentRecords);
   };
 
+  // HÀM XÓA BUỔI HỌP / ĐÀO TẠO (BẢO MẬT: BẮT NHẬP PASS 8888)
+  const handleDeleteSession = async (sessionToDelete: TrainingSession) => {
+    const pin = prompt(
+      `🔐 BẢO MẬT XÓA BUỔI HỌP\n\nBạn đang yêu cầu xóa: "${sessionToDelete.title}" (${sessionToDelete.date})\n\nThao tác này sẽ xóa vĩnh viễn buổi họp và toàn bộ danh sách điểm danh liên quan.\nVui lòng nhập Mật khẩu Quản trị để xác nhận:`
+    );
+
+    if (pin === null) return; // Người dùng bấm Hủy
+
+    if (pin.trim() !== '8888') {
+      soundFX.playError();
+      alert('❌ Mật khẩu quản trị không đúng! Không thể xóa buổi họp này.');
+      return;
+    }
+
+    if (confirm(`Xác nhận xóa vĩnh viễn buổi họp "${sessionToDelete.title}"?`)) {
+      try {
+        // 1. Xóa trong state sessions
+        const remainingSessions = sessions.filter(s => s.id !== sessionToDelete.id);
+        setSessions(remainingSessions);
+
+        // 2. Xóa các bản ghi điểm danh của buổi đó
+        setAttendanceRecords(prev => prev.filter(r => r.sessionId !== sessionToDelete.id));
+
+        // 3. Chuyển active sang buổi kế tiếp nếu đang xem buổi bị xóa
+        if (activeSessionId === sessionToDelete.id) {
+          setActiveSessionId(remainingSessions[0]?.id || '');
+        }
+
+        // 4. Xóa sạch vĩnh viễn trên Cloud Firebase
+        await deleteTrainingSessionInCloud(sessionToDelete.id);
+
+        soundFX.playScanSuccess();
+        alert('✅ Đã xóa buổi họp và dữ liệu liên quan thành công!');
+      } catch (err) {
+        console.error('Lỗi khi xóa buổi họp trên cloud:', err);
+      }
+    }
+  };
+  
   const handleDeleteRecord = async (record: AttendanceRecord) => {
     if (confirm(`Bạn có chắc muốn xoá lượt điểm danh của "${record.employeeName}" (${record.employeeCode})?`)) {
       try {
@@ -268,23 +307,46 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
           </div>
         )}
 
-        {/* Sessions tabs */}
+        {/* KHU VỰC CHỌN BUỔI HỌP THIẾT KẾ MỚI (DROPDOWN + THÔNG TIN + NÚT XÓA) */}
         {sessions.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 text-xs">
-            <span className="text-slate-500 text-xs shrink-0 font-bold">Chọn buổi:</span>
-            {sessions.map(s => (
+          <div className="pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-xs font-bold text-slate-700 shrink-0 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                <span>Danh sách buổi họp ({sessions.length}):</span>
+              </span>
+
+              {/* Menu chọn buổi gọn gàng */}
+              <div className="relative flex-1 max-w-md">
+                <select
+                  value={currentSession?.id || ''}
+                  onChange={(e) => setActiveSessionId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-blue-200 hover:border-blue-400 rounded-xl text-xs font-extrabold text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-xs cursor-pointer truncate"
+                >
+                  {sessions.map(s => {
+                    const count = attendanceRecords.filter(r => r.sessionId === s.id).length;
+                    return (
+                      <option key={s.id} value={s.id}>
+                        [{s.date}] {s.title} ({count} người đã điểm danh)
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+
+            {/* Nút Xóa buổi họp hiện tại (Khóa Pass 8888) */}
+            {currentSession && (
               <button
-                key={s.id}
-                onClick={() => setActiveSessionId(s.id)}
-                className={`px-3 py-1.5 rounded-lg shrink-0 font-bold transition-all ${
-                  s.id === currentSession?.id 
-                    ? 'bg-blue-600 text-white shadow-sm' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
+                type="button"
+                onClick={() => handleDeleteSession(currentSession)}
+                className="px-3 py-2 rounded-xl bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 hover:border-rose-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-2xs shrink-0"
+                title={`Xóa buổi "${currentSession.title}"`}
               >
-                {s.title} ({attendanceRecords.filter(r => r.sessionId === s.id).length})
+                <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                <span>Xóa Buổi Này</span>
               </button>
-            ))}
+            )}
           </div>
         )}
       </div>
