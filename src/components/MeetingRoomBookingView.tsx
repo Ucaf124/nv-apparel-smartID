@@ -22,11 +22,13 @@ import { Employee, RoomBooking, maskEmployeeCode } from '../types';
 import { PRESET_ROOMS } from '../data/mockEmployees';
 import { exportRoomBookingsToExcel } from '../utils/exportExcel';
 import { soundFX } from '../utils/audio';
-import { deleteRoomBookingInCloud, saveRoomBookingToCloud } from '../services/firebaseSync';
+import { deleteRoomBookingInCloud, saveRoomBookingToCloud, saveTrainingSessionToCloud } from '../services/firebaseSync';
+import { TrainingSession } from '../types';
 
 interface MeetingRoomBookingViewProps {
   employees: Employee[];
   bookings: RoomBooking[];
+  setSessions?: React.Dispatch<React.SetStateAction<TrainingSession[]>>;
   setBookings: React.Dispatch<React.SetStateAction<RoomBooking[]>>;
   onOpenScannerForRoomBooking: (roomId: string, date: string) => void;
   onOpenScannerForRoomCheckIn: (bookingId: string) => void;
@@ -64,6 +66,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
   const [bookEmpName, setBookEmpName] = useState('');
   const [bookDept, setBookDept] = useState('');
   const [bookPhone, setBookPhone] = useState('');
+  const [bookHostName, setBookHostName] = useState('');
   const [bookStartTime, setBookStartTime] = useState('09:00');
   const [bookEndTime, setBookEndTime] = useState('10:30');
   const [bookParticipants, setBookParticipants] = useState(10);
@@ -232,6 +235,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       department: bookDept.trim() || 'Khối Sản Xuất',
       phone: bookPhone.trim(),
       title: bookTitle.trim(),
+      hostName: bookHostName.trim() || bookEmpName.trim() || 'Người chủ trì',
       date: selectedDate,
       startTime: bookStartTime,
       endTime: bookEndTime,
@@ -671,7 +675,21 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   required
                   value={bookTitle}
                   onChange={(e) => setBookTitle(e.target.value)}
-                  placeholder="VD: Họp giao ban kỹ thuật chuyền may & KCS"
+                  placeholder="VD: Họp KPI, SCR,..."
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 mb-1 font-bold">
+                  Người Họp / Chủ Trì Cuộc Họp <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={bookHostName}
+                  onChange={(e) => setBookHostName(e.target.value)}
+                  placeholder="VD: Nguyễn Huỳnh Như Ngọc (Sewing Supervisor)"
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
                 />
               </div>
