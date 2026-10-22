@@ -37,6 +37,7 @@ interface MeetingRoomBookingViewProps {
 export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
   employees,
   bookings,
+  setSessions,
   setBookings,
   onOpenScannerForRoomBooking,
   onOpenScannerForRoomCheckIn
