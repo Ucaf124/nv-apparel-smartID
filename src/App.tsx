@@ -424,11 +424,25 @@ export default function App() {
     const empFactory = matchedEmployee?.Factory_Code || 'Factory 1';
     const empPosition = matchedEmployee?.Position_Eng || 'Công nhân viên';
 
-    // 1. Process Attendance
+    // 1. Process Attendance (BẢO MẬT: BẮT BUỘC PHẢI LÀ CÔNG NHÂN VIÊN NV)
     if (scannerMode?.type === 'attendance') {
+      // KIỂM TRA MÃ CÓ NẰM TRONG DANH SÁCH 5.379 CÔNG NHÂN VIÊN KHÔNG
+      const isExistInRoster = employees.some(
+        e => e.Employee_Code.trim().toLowerCase() === code.toLowerCase()
+      );
+
+      if (!isExistInRoster && !matchedEmployee) {
+        soundFX.playError();
+        alert(
+          `❌ TỪ CHỐI ĐIỂM DANH!\n\nMã thẻ "${code}" không tồn tại trong danh sách nhân sự nhà máy.\nBạn không phải công nhân viên của NV, không thể tham gia đào tạo!`
+        );
+        return; // Chặn lại ngay lập tức, KHÔNG cho điểm danh
+      }
+
       const sessionId = scannerMode.sessionId;
       const targetSession = sessions.find(s => s.id === sessionId) || sessions[0];
 
+      // Kiểm tra trùng lặp
       const alreadyChecked = attendanceRecords.some(
         r => r.sessionId === targetSession.id && r.employeeCode.trim().toLowerCase() === code.trim().toLowerCase()
       );
