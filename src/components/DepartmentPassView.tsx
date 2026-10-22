@@ -6,26 +6,22 @@
 import React, { useState } from 'react';
 import { 
   ScanLine, 
-  ArrowLeftRight, 
   ArrowRight, 
   FileSpreadsheet, 
-  Clock, 
-  UserCheck, 
   Building2, 
   CheckCircle2, 
-  LogOut, 
   Search, 
   Filter, 
   ShieldAlert, 
-  MapPin,
-  Sparkles,
-  RotateCcw
+  MapPin, 
+  RotateCcw,
+  Trash2
 } from 'lucide-react';
 import { DepartmentPassRecord, Employee, maskEmployeeCode } from '../types';
 import { COMMON_DEPARTMENTS, COMMON_MOVE_REASONS } from '../data/mockEmployees';
 import { exportDepartmentPassToExcel } from '../utils/exportExcel';
 import { soundFX } from '../utils/audio';
-import { updateDepartmentPassInCloud } from '../services/firebaseSync';
+import { updateDepartmentPassInCloud, deleteDepartmentPassInCloud } from '../services/firebaseSync';
 
 interface DepartmentPassViewProps {
   employees: Employee[];
@@ -45,15 +41,16 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
   setPasses,
   onOpenScannerForPass
 }) => {
-  const [selectedPassType, setSelectedPassType] = useState<'check_in' | 'check_out'>('check_in');
   const [fromDept, setFromDept] = useState(COMMON_DEPARTMENTS[5]); // Phòng Kỹ Thuật May & Bảo Trì
-  const [toDept, setToDept] = useState(COMMON_DEPARTMENTS[0]); // Xưởng 1 (Factory 1 - May)
-  const [reason, setReason] = useState(COMMON_MOVE_REASONS[2]); // Bảo trì, sửa chữa máy móc
+  const [toDept, setToDept] = useState(COMMON_DEPARTMENTS[0]);     // Xưởng 1
+  const [reason, setReason] = useState(COMMON_MOVE_REASONS[2]);
   const [customReason, setCustomReason] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'returned'>('all');
 
-  const activeOccupants = passes.filter(p => p.passType === 'check_in' && p.status === 'active');
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayPassCount = passes.filter(p => p.date === todayStr).length;
+  const activeOccupants = passes.filter(p => p.status === 'active');
 
   const filteredPasses = passes.filter(p => {
     const matchSearch = p.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -71,31 +68,63 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
       fromDept,
       toDept,
       reason: finalReason,
-      passType: selectedPassType
+      passType: 'check_in'
     });
   };
 
-  const handleMarkReturned = async (passId: string) => {
-  const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  soundFX.playScanSuccess();
+  // BẢO MẬT XÁC NHẬN VỀ (CHỈ NGƯỜI ĐÓ HOẶC ADMIN PASS 8888)
+  const handleMarkReturned = async (pass: DepartmentPassRecord) => {
+    const promptInput = prompt(
+      `🔐 BẢO MẬT XÁC NHẬN VỀ\n\nNhân sự: ${pass.employeeName}\nLộ trình: ${pass.fromDepartment} → ${pass.toDepartment}\n\nVui lòng nhập MÃ THẺ của bạn hoặc Mật khẩu Quản trị để xác nhận rời khỏi bộ phận:`
+    );
 
-  const targetPass = passes.find(p => p.id === passId);
-    if (!targetPass) return;
-  
+    if (promptInput === null) return;
+
+    const cleanInput = promptInput.trim().toLowerCase();
+    const isOwner = cleanInput === pass.employeeCode.trim().toLowerCase();
+    const isAdmin = cleanInput === '8888';
+
+    if (!isOwner && !isAdmin) {
+      soundFX.playError();
+      alert('❌ Xác thực thất bại! Bạn không phải nhân sự này và không có quyền xác nhận về thay người khác.');
+      return;
+    }
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const dateStr = now.toISOString().split('T')[0];
+
     const updatedPass: DepartmentPassRecord = {
-      ...targetPass,
+      ...pass,
       status: 'returned',
-      returnTime: now
+      returnTime: timeStr,
+      returnDate: dateStr
     };
-  
-    // 1. Cập nhật state giao diện
-    setPasses(prev => prev.map(p => p.id === passId ? updatedPass : p));
-  
-    // 2. LƯU LÊN MÁY CHỦ CLOUD FIREBASE ĐỂ KHÔNG BỊ HIỆN LẠI "ĐANG LƯU TRÚ"
-    try {
-      await updateDepartmentPassInCloud(updatedPass);
-    } catch (err) {
-      console.error('Lỗi khi cập nhật check-out trên cloud:', err);
+
+    setPasses(prev => prev.map(p => p.id === pass.id ? updatedPass : p));
+    await updateDepartmentPassInCloud(updatedPass);
+    soundFX.playScanSuccess();
+    alert(`✅ Đã xác nhận ra khỏi bộ phận thành công lúc ${timeStr}!`);
+  };
+
+  // BẢO MẬT XÓA TỪNG DÒNG (CHỈ NHẬP PASS 8888 MỚI ĐƯỢC XÓA)
+  const handleDeletePass = async (pass: DepartmentPassRecord) => {
+    const pin = prompt(
+      `🔐 BẢO MẬT XÓA NHẬT KÝ\n\nBạn đang yêu cầu xóa lượt di chuyển của "${pass.employeeName}" (${pass.date} lúc ${pass.timestamp}).\nVui lòng nhập Mật khẩu Quản trị để xác nhận:`
+    );
+
+    if (pin === null) return;
+
+    if (pin.trim() !== '8888') {
+      soundFX.playError();
+      alert('❌ Mật khẩu quản trị không đúng! Không thể xóa nhật ký này.');
+      return;
+    }
+
+    if (confirm(`Xác nhận xóa vĩnh viễn lượt di chuyển của ${pass.employeeName}?`)) {
+      setPasses(prev => prev.filter(p => p.id !== pass.id));
+      await deleteDepartmentPassInCloud(pass.id);
+      soundFX.playScanSuccess();
     }
   };
 
@@ -104,18 +133,13 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
       alert('Chưa có dữ liệu nhật ký ra/vào để xuất file!');
       return;
     }
-  
-    // Khóa mật khẩu tải file Excel
-    const pin = prompt('🔐 BẢO MẬT XUẤT NHẬT KÝ\n\nFile Excel chứa dữ liệu di chuyển và mã thẻ công nhân.\nVui lòng nhập Mật khẩu Quản trị để tải:');
+    const pin = prompt('🔐 BẢO MẬT XUẤT NHẬT KÝ\n\nVui lòng nhập Mật khẩu Quản trị (8888) để tải file Excel:');
     if (pin === null) return;
-  
     if (pin.trim() !== '8888') {
       soundFX.playError();
-      alert('❌ Mật khẩu không đúng! Bạn không có quyền tải nhật ký ra/vào.');
+      alert('❌ Mật khẩu không đúng! Bạn không có quyền tải file này.');
       return;
     }
-  
-    soundFX.playScanSuccess();
     exportDepartmentPassToExcel(passes);
   };
 
@@ -142,39 +166,11 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
           </button>
         </div>
 
-        {/* Quick Config Station for Scanning */}
+        {/* Thiết lập chốt quét thẻ nhanh */}
         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-              <MapPin className="w-4 h-4 text-emerald-600" />
-              Thiết Lập Chốt Quét Thẻ Nhanh:
-            </span>
-
-            {/* Check-in / Check-out mode switch */}
-            <div className="flex p-1 bg-white border border-slate-300 rounded-xl text-xs shadow-sm self-start sm:self-auto">
-              <button
-                type="button"
-                onClick={() => setSelectedPassType('check_in')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-                  selectedPassType === 'check_in' 
-                    ? 'bg-emerald-600 text-white shadow-sm' 
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                VÀO (Check-In)
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedPassType('check_out')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-                  selectedPassType === 'check_out' 
-                    ? 'bg-rose-600 text-white shadow-sm' 
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                RA (Check-Out)
-              </button>
-            </div>
+          <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+            <MapPin className="w-4 h-4 text-emerald-600" />
+            Thiết Lập Chốt Quét Thẻ Nhanh:
           </div>
 
           {/* From & To Selectors */}
@@ -250,49 +246,13 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
               className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/25 transition-all"
             >
               <ScanLine className="w-5 h-5 animate-pulse" />
-              <span>QUÉT MÃ THẺ GHI NHẬN {selectedPassType === 'check_in' ? 'VÀO BỘ PHẬN' : 'RA BỘ PHẬN'}</span>
+              <span>QUÉT MÃ THẺ GHI NHẬN VÀO BỘ PHẬN</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Real-time stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
-          <span className="text-xs text-slate-500 block font-semibold">Lượt Ra/Vào Hôm Nay</span>
-          <span className="text-2xl font-black text-slate-900 mt-1 block">
-            {passes.length}
-          </span>
-          <span className="text-[11px] text-slate-400">Tổng lượt quét</span>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm border-l-4 border-l-emerald-600">
-          <span className="text-xs text-slate-500 block font-semibold">Đang Ở Bộ Phận Khác</span>
-          <span className="text-2xl font-black text-emerald-600 mt-1 block">
-            {activeOccupants.length}
-          </span>
-          <span className="text-[11px] text-slate-400">Chưa check-out về</span>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
-          <span className="text-xs text-slate-500 block font-semibold">Đã Hoàn Thành Về</span>
-          <span className="text-2xl font-black text-blue-600 mt-1 block">
-            {passes.filter(p => p.status === 'returned').length}
-          </span>
-          <span className="text-[11px] text-slate-400">Đã kết thúc lượt đi</span>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
-          <span className="text-xs text-slate-500 block font-semibold">An Toàn & PCCC</span>
-          <span className="text-sm font-bold text-emerald-700 mt-2 block flex items-center gap-1">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            Kiểm Soát 100%
-          </span>
-          <span className="text-[11px] text-slate-400">Đầy đủ nhật ký</span>
-        </div>
-      </div>
-
-      {/* Occupants Currently in Department Banner */}
+      {/* Danh sách người đang lưu trú tại xưởng (nếu có) */}
       {activeOccupants.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
@@ -307,7 +267,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
             {activeOccupants.map(item => (
               <div 
                 key={item.id}
-                className="p-3 rounded-xl bg-white border border-amber-200/90 shadow-sm flex items-center justify-between gap-2.5"
+                className="p-3 rounded-xl bg-white border border-amber-200 shadow-sm flex items-center justify-between gap-2.5"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -317,15 +277,15 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 truncate mt-0.5">
-                    {item.employeeDepartment} &rarr; <span className="text-emerald-700 font-bold">{item.toDepartment}</span>
+                    {item.fromDepartment} &rarr; <span className="text-emerald-700 font-bold">{item.toDepartment}</span>
                   </p>
                   <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                    Lý do: {item.reason} • Vào: <strong className="font-mono text-slate-700">{item.timestamp}</strong>
+                    Vào: <strong className="font-mono text-slate-700">{item.timestamp}</strong> ({item.date})
                   </p>
                 </div>
 
                 <button
-                  onClick={() => handleMarkReturned(item.id)}
+                  onClick={() => handleMarkReturned(item)}
                   title="Xác nhận nhân viên đã rời khỏi và trở về"
                   className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0 flex items-center gap-1 transition-all shadow-sm"
                 >
@@ -340,38 +300,50 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
 
       {/* History Log Container */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-3.5 sm:p-4 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/60">
-          <div className="relative w-full sm:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Tìm kiếm nhật ký..."
-              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-sm"
-            />
+        {/* Toolbar: Dời Thẻ Hôm Nay xuống nằm cạnh Ô Tìm Kiếm & Bộ Lọc */}
+        <div className="p-3.5 sm:p-4 border-b border-slate-200 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-50/70">
+          <div className="flex items-center gap-3 flex-1">
+            {/* THẺ TÍNH TỔNG LƯỢT RA/VÀO HÔM NAY DỜI XUỐNG ĐÂY */}
+            <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 shrink-0 shadow-2xs">
+              <span className="text-xs font-bold text-emerald-900">Hôm nay:</span>
+              <span className="text-base font-black text-emerald-700 font-mono">{todayPassCount}</span>
+              <span className="text-[10px] text-emerald-600">lượt</span>
+            </div>
+
+            {/* Ô tìm kiếm nhật ký */}
+            <div className="relative flex-1 max-w-sm">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Tìm theo tên, mã NV, bộ phận, lý do..."
+                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-sm"
+              />
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Bộ lọc trạng thái */}
+          <div className="flex items-center gap-2 shrink-0">
             <Filter className="w-3.5 h-3.5 text-slate-500" />
-            <div className="flex p-0.5 bg-slate-100 border border-slate-300 rounded-xl text-xs">
+            <div className="flex p-0.5 bg-white border border-slate-300 rounded-xl text-xs shadow-2xs">
               <button
                 onClick={() => setStatusFilter('all')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${statusFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${statusFilter === 'all' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
               >
-                Tất cả
+                Tất cả ({passes.length})
               </button>
               <button
                 onClick={() => setStatusFilter('active')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${statusFilter === 'active' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500'}`}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${statusFilter === 'active' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
               >
-                Đang ở xưởng
+                Đang ở xưởng ({activeOccupants.length})
               </button>
               <button
                 onClick={() => setStatusFilter('returned')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${statusFilter === 'returned' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-500'}`}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${statusFilter === 'returned' ? 'bg-slate-700 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
               >
-                Đã về
+                Đã về ({passes.filter(p => p.status === 'returned').length})
               </button>
             </div>
           </div>
@@ -380,139 +352,93 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
         {filteredPasses.length === 0 ? (
           <div className="p-8 sm:p-12 text-center space-y-2">
             <Building2 className="w-12 h-12 text-slate-300 mx-auto" />
-            <p className="text-base font-bold text-slate-800">Chưa có nhật ký di chuyển</p>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Nhấn &ldquo;QUÉT MÃ THẺ GHI NHẬN&rdquo; để bắt đầu thay thế phiếu giấy kiểm soát công nhân di chuyển giữa các phòng ban.
-            </p>
+            <p className="text-base font-bold text-slate-800">Chưa có nhật ký di chuyển nào</p>
           </div>
         ) : (
           <div>
-            {/* ================= MOBILE VIEW (NO HORIZONTAL SCROLL) ================= */}
-            <div className="block md:hidden divide-y divide-slate-100">
-              {filteredPasses.map((p, index) => (
-                <div key={p.id} className="p-3.5 hover:bg-slate-50/80 transition-colors space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
-                        p.passType === 'check_in' 
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
-                          : 'bg-rose-100 text-rose-800 border border-rose-300'
-                      }`}>
-                        {p.passType === 'check_in' ? 'VÀO' : 'RA'}
-                      </span>
-                      <div>
-                        <span className="font-bold text-slate-900 text-sm">{p.employeeName}</span>
-                        <span className="font-mono text-xs text-blue-700 font-bold ml-1.5">({maskEmployeeCode(p.employeeCode)})</span>
-                      </div>
-                    </div>
-
-                    {p.status === 'active' ? (
-                      <button
-                        onClick={() => handleMarkReturned(p.id)}
-                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-sm shrink-0"
-                      >
-                        Xác nhận về
-                      </button>
-                    ) : (
-                      <span className="text-[11px] text-slate-500 font-medium shrink-0">
-                        Đã về ({p.returnTime})
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Route & Reason */}
-                  <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-200 text-xs space-y-1">
-                    <div className="flex items-center gap-1.5 text-slate-700 font-semibold flex-wrap">
-                      <span className="text-slate-500">{p.fromDepartment}</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span className="text-emerald-800 font-bold">{p.toDepartment}</span>
-                    </div>
-                    <div className="text-slate-600 text-[11px]">
-                      <strong>Lý do:</strong> {p.reason}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span className="font-mono text-slate-600">{p.date} lúc {p.timestamp}</span>
-                    <span className="text-slate-500">{p.employeePosition}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* ================= DESKTOP VIEW (FULL TABLE) ================= */}
-            <div className="hidden md:block overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold">
+                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-700 font-extrabold">
                     <th className="p-3 w-12 text-center">STT</th>
-                    <th className="p-3">Loại</th>
                     <th className="p-3">Mã & Họ Tên NV</th>
                     <th className="p-3">Lộ Trình Di Chuyển</th>
                     <th className="p-3">Lý Do</th>
-                    <th className="p-3">Thời Gian Ghi Nhận</th>
-                    <th className="p-3">Trạng Thái</th>
-                    <th className="p-3 text-center">Thao Tác</th>
+                    <th className="p-3">Thời Gian Vào</th>
+                    <th className="p-3">Thời Gian Ra</th>
+                    <th className="p-3 text-center w-24">Thao Tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredPasses.map((p, index) => (
-                    <tr key={p.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="p-3 text-center text-slate-400 font-mono font-medium">
-                        {index + 1}
-                      </td>
-                      <td className="p-3">
-                        <span className={`inline-block px-2.5 py-0.5 rounded text-[11px] font-bold ${
-                          p.passType === 'check_in' 
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
-                            : 'bg-rose-100 text-rose-800 border border-rose-300'
-                        }`}>
-                          {p.passType === 'check_in' ? 'VÀO' : 'RA'}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <div className="font-bold text-slate-900">{p.employeeName}</div>
-                        <div className="text-[11px] font-mono text-blue-700 font-bold">{maskEmployeeCode(p.employeeCode)} &bull; {p.employeePosition}</div>
-                      </td>
-                      <td className="p-3 text-slate-700">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-slate-500">{p.fromDepartment}</span>
-                          <ArrowRight className="w-3 h-3 text-emerald-600 shrink-0" />
-                          <span className="text-emerald-800 font-bold">{p.toDepartment}</span>
-                        </div>
-                      </td>
-                      <td className="p-3 text-slate-700 max-w-xs truncate font-medium">
-                        {p.reason}
-                      </td>
-                      <td className="p-3 font-mono text-slate-800">
-                        <div className="font-bold">{p.timestamp}</div>
-                        <div className="text-[11px] text-slate-400">{p.date}</div>
-                      </td>
-                      <td className="p-3">
-                        {p.status === 'active' ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold">
-                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                            Đang lưu trú
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            Đã về ({p.returnTime || 'Xong'})
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-3 text-center">
-                        {p.status === 'active' && (
-                          <button
-                            onClick={() => handleMarkReturned(p.id)}
-                            className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-sm"
-                          >
-                            Xác nhận về
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredPasses.map((p, index) => {
+                    const isAtWorkshop = p.status === 'active';
+
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="p-3 text-center text-slate-400 font-mono font-medium">
+                          {index + 1}
+                        </td>
+                        <td className="p-3">
+                          <div className="font-bold text-slate-900">{p.employeeName}</div>
+                          <div className="text-[11px] font-mono text-blue-700 font-bold">
+                            {maskEmployeeCode(p.employeeCode)} &bull; {p.employeePosition}
+                          </div>
+                        </td>
+                        <td className="p-3 text-slate-700">
+                          <div className="flex items-center gap-1.5 font-medium">
+                            <span className="text-slate-500">{p.fromDepartment}</span>
+                            <ArrowRight className="w-3 h-3 text-emerald-600 shrink-0" />
+                            <span className="text-emerald-800 font-bold">{p.toDepartment}</span>
+                          </div>
+                        </td>
+                        <td className="p-3 text-slate-700 max-w-xs truncate font-medium">
+                          {p.reason}
+                        </td>
+                        {/* CỘT THỜI GIAN VÀO (GIỜ + NGÀY) */}
+                        <td className="p-3 font-mono text-slate-800">
+                          <div className="font-bold text-emerald-700">{p.timestamp}</div>
+                          <div className="text-[11px] text-slate-400">{p.date}</div>
+                        </td>
+                        {/* CỘT THỜI GIAN RA (GIỜ + NGÀY HOẶC NÚT ĐANG Ở XƯỞNG) */}
+                        <td className="p-3 font-mono">
+                          {isAtWorkshop ? (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 font-sans font-bold text-[11px] border border-amber-300">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
+                              Đang ở xưởng
+                            </span>
+                          ) : (
+                            <div>
+                              <div className="font-bold text-blue-700">{p.returnTime}</div>
+                              <div className="text-[11px] text-slate-400">{p.returnDate || p.date}</div>
+                            </div>
+                          )}
+                        </td>
+                        {/* THAO TÁC: NÚT XÁC NHẬN VỀ & NÚT XÓA BẢO MẬT PASS 8888 */}
+                        <td className="p-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {isAtWorkshop && (
+                              <button
+                                onClick={() => handleMarkReturned(p)}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors shadow-xs"
+                                title="Chỉ người này hoặc Admin mới xác nhận về được"
+                              >
+                                Về
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => handleDeletePass(p)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              title="Xóa lượt này (Cần mật khẩu 8888)"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
