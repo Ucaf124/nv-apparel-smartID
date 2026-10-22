@@ -141,21 +141,48 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     return { canCheckIn: true };
   };
   
-  // HÀM TRẢ PHÒNG (CHECK-OUT)
+  // HÀM XÁC NHẬN TRẢ PHÒNG (BẢO MẬT: CHỈ NGƯỜI ĐẶT HOẶC ADMIN PASS 8888 MỚI ĐƯỢC TRẢ)
   const handleCheckOut = async (booking: RoomBooking) => {
+    // 1. Popup bảo mật kín tuyệt đối - KHÔNG gợi ý mã thẻ người đặt
+    const promptInput = prompt(
+      `🔐 BẢO MẬT XÁC NHẬN TRẢ PHÒNG\n\nCuộc họp: "${booking.title}"\n\nĐể xác nhận kết thúc và trả phòng họp, vui lòng nhập MÃ THẺ của người đã đặt phòng hoặc Mật khẩu Quản trị:`
+    );
+
+    if (promptInput === null) return; // Người dùng bấm Hủy/Cancel
+
+    const cleanInput = promptInput.trim().toLowerCase();
+    const isOwner = cleanInput === booking.bookedByCode.trim().toLowerCase();
+    const isAdmin = cleanInput === '8888';
+
+    // 2. Chặn nếu không đúng mã thẻ người đặt và không đúng pass admin
+    if (!isOwner && !isAdmin) {
+      soundFX.playError();
+      alert('❌ Xác thực thất bại! Bạn không phải người đã đặt phòng này và không có quyền trả phòng.');
+      return;
+    }
+
+    // 3. Nếu đúng quyền thì tiến hành hoàn tất và trả phòng
     const now = new Date();
     const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
     
-    if (confirm(`Xác nhận trả phòng cho cuộc họp "${booking.title}"? Phòng sẽ chuyển về trạng thái TRỐNG cho các bộ phận khác.`)) {
+    try {
       const updatedBooking: RoomBooking = {
         ...booking,
         status: 'completed',
         checkedOutAt: timeStr
       };
 
+      // Cập nhật state giao diện
       setBookings(prev => prev.map(b => b.id === booking.id ? updatedBooking : b));
+      
+      // Đồng bộ lên Cloud để phòng chuyển sang trạng thái TRỐNG cho các máy khác
       await saveRoomBookingToCloud(updatedBooking);
+      
       soundFX.playScanSuccess();
+      alert(`✅ Đã xác nhận trả phòng thành công lúc ${timeStr}! Phòng đã sẵn sàng cho bộ phận tiếp theo.`);
+    } catch (err) {
+      console.error('Lỗi khi trả phòng trên Cloud:', err);
+      alert('Lỗi kết nối khi cập nhật trả phòng.');
     }
   };
 
