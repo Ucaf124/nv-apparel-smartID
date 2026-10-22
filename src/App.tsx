@@ -732,6 +732,7 @@ export default function App() {
           <MeetingRoomBookingView
             employees={employees}
             bookings={bookings}
+            setSessions={setSessions}
             setBookings={setBookings}
             onOpenScannerForRoomBooking={handleOpenScannerForRoomBooking}
             onOpenScannerForRoomCheckIn={handleOpenScannerForRoomCheckIn}
