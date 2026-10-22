@@ -21,7 +21,7 @@ import {
   Sparkles,
   RotateCcw
 } from 'lucide-react';
-import { DepartmentPassRecord, Employee } from '../types';
+import { DepartmentPassRecord, Employee, maskEmployeeCode } from '../types';
 import { COMMON_DEPARTMENTS, COMMON_MOVE_REASONS } from '../data/mockEmployees';
 import { exportDepartmentPassToExcel } from '../utils/exportExcel';
 import { soundFX } from '../utils/audio';
@@ -301,7 +301,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                   <div className="flex items-center gap-1.5">
                     <span className="font-bold text-slate-900 text-xs truncate">{item.employeeName}</span>
                     <span className="text-[10px] font-mono font-bold text-blue-700 px-1 rounded bg-blue-50 border border-blue-200">
-                      {item.employeeCode}
+                      {maskEmployeeCode(item.employeeCode)}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 truncate mt-0.5">
@@ -390,7 +390,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                       </span>
                       <div>
                         <span className="font-bold text-slate-900 text-sm">{p.employeeName}</span>
-                        <span className="font-mono text-xs text-blue-700 font-bold ml-1.5">({p.employeeCode})</span>
+                        <span className="font-mono text-xs text-blue-700 font-bold ml-1.5">({maskEmployeeCode(p.employeeCode)})</span>
                       </div>
                     </div>
 
@@ -460,7 +460,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                       </td>
                       <td className="p-3">
                         <div className="font-bold text-slate-900">{p.employeeName}</div>
-                        <div className="text-[11px] font-mono text-blue-700 font-bold">{p.employeeCode} &bull; {p.employeePosition}</div>
+                        <div className="text-[11px] font-mono text-blue-700 font-bold">{maskEmployeeCode(p.employeeCode)} &bull; {p.employeePosition}</div>
                       </td>
                       <td className="p-3 text-slate-700">
                         <div className="flex items-center gap-1.5">
