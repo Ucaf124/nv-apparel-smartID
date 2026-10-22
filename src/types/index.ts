@@ -53,7 +53,7 @@ export interface AttendanceRecord {
   position: string;
   scanTime: string;
   date: string;
-  method: 'camera_scan' | 'manual_entry';
+  method: 'camera_scan' | 'manual_entry' | 'photo_scan';
   note?: string;
 }
 
