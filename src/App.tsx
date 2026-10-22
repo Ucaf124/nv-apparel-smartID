@@ -520,7 +520,7 @@ export default function App() {
       if (!isOwner && !isAdmin) {
         soundFX.playError();
         alert(
-          `❌ XÁC NHẬN THẤT BẠI!\n\nMã thẻ vừa quét (${code}) không phải là người đã đặt phòng cho cuộc họp "${targetBooking.title}".\n\nChỉ người đặt phòng hoặc Quản trị viên (pass 8888) mới được nhận phòng!`
+          `❌ XÁC NHẬN THẤT BẠI!\n\nMã thẻ vừa quét (${code}) không phải là người đã đặt phòng cho cuộc họp "${targetBooking.title}".\n\nChỉ người đặt phòng mới được nhận phòng!`
         );
         return; // KHÔNG cho nhận phòng, giữ camera để quét lại thẻ đúng
       }
