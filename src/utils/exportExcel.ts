@@ -49,14 +49,14 @@ export function exportDepartmentPassToExcel(passes: DepartmentPassRecord[]) {
     'Họ và Tên': p.employeeName,
     'Bộ Phận Gốc': p.employeeDepartment,
     'Chức Vụ': p.employeePosition,
-    'Loại Phiếu': p.passType === 'check_in' ? 'VÀO (Check-in)' : 'RA (Check-out)',
     'Từ Bộ Phận': p.fromDepartment,
     'Đến Bộ Phận': p.toDepartment,
     'Lý Do Di Chuyển': p.reason,
-    'Thời Gian Ghi Nhận': p.timestamp,
-    'Ngày': p.date,
-    'Trạng Thái': p.status === 'active' ? 'Đang lưu trú' : 'Đã quay về',
-    'Giờ Trở Về': p.returnTime || '-'
+    'Thời Gian Vào': p.timestamp,
+    'Ngày Vào': p.date,
+    'Thời Gian Ra': p.returnTime || 'Chưa về',
+    'Ngày Ra': p.returnDate || (p.returnTime ? p.date : '-'),
+    'Trạng Thái': p.status === 'active' ? 'Đang ở xưởng' : 'Đã về'
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(data);
@@ -68,19 +68,19 @@ export function exportDepartmentPassToExcel(passes: DepartmentPassRecord[]) {
     { wch: 24 },
     { wch: 20 },
     { wch: 22 },
-    { wch: 18 },
     { wch: 22 },
     { wch: 22 },
     { wch: 30 },
-    { wch: 18 },
+    { wch: 15 },
     { wch: 12 },
-    { wch: 16 },
+    { wch: 15 },
+    { wch: 12 },
     { wch: 14 }
   ];
 
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Nhat_Ky_Bo_Phan');
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Nhat_Ky_Ra_Vao');
   const dateStr = new Date().toISOString().split('T')[0];
-  XLSX.writeFile(workbook, `NhatKy_CheckIn_BoPhan_${dateStr}.xlsx`);
+  XLSX.writeFile(workbook, `NhatKy_RaVao_BoPhan_${dateStr}.xlsx`);
 }
 
 export function exportRoomBookingsToExcel(bookings: RoomBooking[]) {
