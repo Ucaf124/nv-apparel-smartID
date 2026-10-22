@@ -644,7 +644,7 @@ export default function App() {
             <UserCheck className="w-4 h-4" />
             <span>Điểm Danh Đào Tạo & Họp</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-mono font-bold">
-              {attendanceRecords.length}
+              {sessions.length}
             </span>
           </button>
 
