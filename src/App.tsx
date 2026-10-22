@@ -245,10 +245,13 @@ export default function App() {
       }
     });
 
-    // Listen to Training Sessions
+    // Listen to Training Sessions (Đồng bộ thời gian thực cho mọi thiết bị)
     const unsubSessions = subscribeToTrainingSessions((cloudSessions) => {
-      if (cloudSessions && cloudSessions.length > 0) {
+      if (cloudSessions) {
         setSessions(cloudSessions);
+        if (cloudSessions.length > 0 && !activeSessionId) {
+          setActiveSessionId(cloudSessions[0].id);
+        }
       }
     });
 
