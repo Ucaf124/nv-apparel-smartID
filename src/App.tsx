@@ -427,7 +427,11 @@ export default function App() {
     setScannerOpen(true);
   };
 
-  const handleBarcodeScanned = (scannedCode: string, matchedEmployee?: Employee) => {
+  const handleBarcodeScanned = (
+      scannedCode: string, 
+      matchedEmployee?: Employee, 
+      scanMethod: 'camera_scan' | 'photo_scan' | 'manual_entry' = 'camera_scan'
+    ) => {
     const code = scannedCode.trim();
     const now = new Date();
     const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -467,7 +471,7 @@ export default function App() {
         position: empPosition,
         scanTime: timeStr,
         date: dateStr,
-        method: 'camera_scan'
+        method: scanMethod
       };
 
       setAttendanceRecords(prev => [newRecord, ...prev]);
