@@ -276,6 +276,30 @@ export async function deleteAttendanceRecordInCloud(recordId: string) {
     handleFirebaseError('deleteAttendanceRecordInCloud', err);
   }
 }
+
+export async function deleteTrainingSessionInCloud(sessionId: string) {
+  if (isQuotaExhausted) return;
+  try {
+    // 1. Xóa buổi họp
+    await deleteDoc(doc(db, 'training_sessions', sessionId));
+
+    // 2. Xóa luôn các lượt điểm danh thuộc buổi họp đó cho sạch rác
+    const attSnap = await getDocs(collection(db, 'attendance_records'));
+    const batch = writeBatch(db);
+    let count = 0;
+    attSnap.docs.forEach(d => {
+      if (d.data()?.sessionId === sessionId) {
+        batch.delete(d.ref);
+        count++;
+      }
+    });
+    if (count > 0) {
+      await batch.commit();
+    }
+  } catch (err) {
+    handleFirebaseError('deleteTrainingSessionInCloud', err);
+  }
+}
 // ======================= DEPARTMENT PASSES =======================
 
 export function subscribeToDepartmentPasses(callback: (passes: DepartmentPassRecord[]) => void) {
