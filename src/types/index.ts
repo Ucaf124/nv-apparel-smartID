@@ -94,6 +94,7 @@ export interface RoomBooking {
   department: string;
   phone?: string;
   title: string;
+  hostName?: string;
   date: string;
   startTime: string; // "09:00"
   endTime: string;   // "10:30"
