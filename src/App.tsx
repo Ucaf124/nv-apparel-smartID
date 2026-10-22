@@ -787,16 +787,6 @@ export default function App() {
           <CalendarDays className="w-5 h-5" />
           <span>Phòng họp</span>
         </button>
-        
-        <button
-          onClick={() => setActiveTab('department_pass')}
-          className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-[10px] font-bold transition-colors ${
-            activeTab === 'department_pass' ? 'text-emerald-700' : 'text-slate-500'
-          }`}
-        >
-          <ArrowLeftRight className="w-5 h-5" />
-          <span>Check-in/Out</span>
-        </button>
 
         <button
           onClick={() => {
@@ -816,6 +806,16 @@ export default function App() {
           className="w-12 h-12 -mt-5 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/35 active:scale-95 transition-transform"
         >
           <ScanLine className="w-6 h-6 animate-pulse" />
+        </button>
+        
+        <button
+          onClick={() => setActiveTab('department_pass')}
+          className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-[10px] font-bold transition-colors ${
+            activeTab === 'department_pass' ? 'text-emerald-700' : 'text-slate-500'
+          }`}
+        >
+          <ArrowLeftRight className="w-5 h-5" />
+          <span>Check-in/Out</span>
         </button>
 
         <button
