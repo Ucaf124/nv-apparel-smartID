@@ -502,10 +502,30 @@ export default function App() {
       return;
     }
 
-    // 4. Process Room Check-in
+    // 4. Process Room Check-in (BẢO MẬT: PHẢI ĐÚNG MÃ THẺ NGƯỜI ĐẶT HOẶC PASS 8888)
     if (scannerMode?.type === 'room_check_in') {
       const targetBooking = bookings.find(b => b.id === scannerMode.bookingId);
-      
+
+      if (!targetBooking) {
+        soundFX.playError();
+        showToast('warning', 'Không tìm thấy thông tin cuộc họp!');
+        setScannerOpen(false);
+        return;
+      }
+
+      // KIỂM TRA MÃ THẺ: Phải đúng mã người đặt HOẶC pass admin 8888
+      const isOwner = code.toLowerCase() === targetBooking.bookedByCode.trim().toLowerCase();
+      const isAdmin = code === '8888';
+
+      if (!isOwner && !isAdmin) {
+        soundFX.playError();
+        alert(
+          `❌ XÁC NHẬN THẤT BẠI!\n\nMã thẻ vừa quét (${code}) không phải là người đã đặt phòng cho cuộc họp "${targetBooking.title}".\n\nChỉ người đặt phòng hoặc Quản trị viên (pass 8888) mới được nhận phòng!`
+        );
+        return; // KHÔNG cho nhận phòng, giữ camera để quét lại thẻ đúng
+      }
+
+      // ĐÚNG THẺ HOẶC ADMIN -> TIẾN HÀNH CHECK-IN NHẬN PHÒNG
       setBookings(prev => prev.map(b => {
         if (b.id === scannerMode.bookingId) {
           const updated = {
@@ -520,34 +540,32 @@ export default function App() {
       }));
 
       // Tự động tạo 1 buổi họp bên tab Điểm Danh
-      if (targetBooking) {
-        const autoSession: TrainingSession = {
-          id: `session_auto_${targetBooking.id}`,
-          title: targetBooking.title,
-          instructor: targetBooking.hostName || targetBooking.bookedByName,
-          location: targetBooking.roomName,
-          date: targetBooking.date,
-          startTime: targetBooking.startTime,
-          endTime: targetBooking.endTime,
-          type: 'meeting',
-          createdAt: new Date().toISOString(),
-          status: 'active'
-        };
+      const autoSession: TrainingSession = {
+        id: `session_auto_${targetBooking.id}`,
+        title: targetBooking.title,
+        instructor: targetBooking.hostName || targetBooking.bookedByName,
+        location: targetBooking.roomName,
+        date: targetBooking.date,
+        startTime: targetBooking.startTime,
+        endTime: targetBooking.endTime,
+        type: 'meeting',
+        createdAt: new Date().toISOString(),
+        status: 'active'
+      };
 
-        setSessions(prev => {
-          if (prev.some(s => s.id === autoSession.id || (s.title === autoSession.title && s.date === autoSession.date))) {
-            return prev;
-          }
-          return [autoSession, ...prev];
-        });
-        saveTrainingSessionToCloud(autoSession).catch(console.error);
-      }
+      setSessions(prev => {
+        if (prev.some(s => s.id === autoSession.id || (s.title === autoSession.title && s.date === autoSession.date))) {
+          return prev;
+        }
+        return [autoSession, ...prev];
+      });
+      saveTrainingSessionToCloud(autoSession).catch(console.error);
 
       soundFX.playScanSuccess();
       showToast(
         'success', 
-        'Nhận phòng & Tạo buổi điểm danh thành công!', 
-        `Đã tạo buổi họp "${targetBooking?.title}" bên tab Điểm Danh để quét thẻ người tham dự.`
+        'Nhận phòng thành công!', 
+        `${isAdmin ? 'Quản trị viên' : empName} đã xác nhận nhận phòng lúc ${timeStr}`
       );
       setScannerOpen(false);
       return;
