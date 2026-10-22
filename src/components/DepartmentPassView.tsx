@@ -104,6 +104,18 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
       alert('Chưa có dữ liệu nhật ký ra/vào để xuất file!');
       return;
     }
+  
+    // Khóa mật khẩu tải file Excel
+    const pin = prompt('🔐 BẢO MẬT XUẤT NHẬT KÝ\n\nFile Excel chứa dữ liệu di chuyển và mã thẻ công nhân.\nVui lòng nhập Mật khẩu Quản trị để tải:');
+    if (pin === null) return;
+  
+    if (pin.trim() !== '8888') {
+      soundFX.playError();
+      alert('❌ Mật khẩu không đúng! Bạn không có quyền tải nhật ký ra/vào.');
+      return;
+    }
+  
+    soundFX.playScanSuccess();
     exportDepartmentPassToExcel(passes);
   };
 
