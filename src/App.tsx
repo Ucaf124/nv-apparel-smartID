@@ -715,7 +715,7 @@ export default function App() {
             activeSessionId={activeSessionId}
             setActiveSessionId={setActiveSessionId}
             onOpenScanner={handleOpenScannerForAttendance}
-            bookings={bookings} // Truyền bookings sang để check trùng phòng
+            bookings={bookings}
           />
         )}
 
@@ -732,7 +732,7 @@ export default function App() {
           <MeetingRoomBookingView
             employees={employees}
             bookings={bookings}
-            setSessions={setSessions} // Truyền setSessions sang để tự tạo buổi họp khi nhận phòng
+            setSessions={setSessions}
             setBookings={setBookings}
             onOpenScannerForRoomBooking={handleOpenScannerForRoomBooking}
             onOpenScannerForRoomCheckIn={handleOpenScannerForRoomCheckIn}
