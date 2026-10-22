@@ -18,12 +18,11 @@ import {
   LogOut,
   AlertTriangle
 } from 'lucide-react';
-import { Employee, RoomBooking, maskEmployeeCode } from '../types';
+import { Employee, RoomBooking, TrainingSession, maskEmployeeCode } from '../types';
 import { PRESET_ROOMS } from '../data/mockEmployees';
 import { exportRoomBookingsToExcel } from '../utils/exportExcel';
 import { soundFX } from '../utils/audio';
 import { deleteRoomBookingInCloud, saveRoomBookingToCloud, saveTrainingSessionToCloud } from '../services/firebaseSync';
-import { TrainingSession } from '../types';
 
 interface MeetingRoomBookingViewProps {
   employees: Employee[];
