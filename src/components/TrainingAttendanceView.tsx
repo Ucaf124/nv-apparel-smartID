@@ -194,18 +194,36 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     }
   };
   
+  // HÀM XÓA LƯỢT ĐIỂM DANH (BẢO MẬT: BẮT BUỘC NHẬP PASS 8888)
   const handleDeleteRecord = async (record: AttendanceRecord) => {
-    if (confirm(`Bạn có chắc muốn xoá lượt điểm danh của "${record.employeeName}" (${record.employeeCode})?`)) {
+    // 1. Popup bảo mật yêu cầu nhập mật khẩu quản trị
+    const pin = prompt(
+      `🔐 BẢO MẬT XÓA ĐIỂM DANH\n\nBạn đang yêu cầu xóa lượt điểm danh của:\n"${record.employeeName}" (Mã: ${record.employeeCode})\nThời gian: ${record.scanTime} - Ngày ${record.date}\n\nVui lòng nhập Mật khẩu Quản trị để xác nhận xóa:`
+    );
+
+    if (pin === null) return; // Người dùng bấm Hủy / Cancel
+
+    // 2. Kiểm tra mật khẩu 8888
+    if (pin.trim() !== '8888') {
+      soundFX.playError();
+      alert('❌ Mật khẩu quản trị không đúng! Bạn không có quyền xóa lượt điểm danh này.');
+      return;
+    }
+
+    // 3. Nếu đúng mật khẩu thì mới tiến hành xóa sạch cả giao diện lẫn Cloud
+    if (confirm(`Xác nhận xóa vĩnh viễn lượt điểm danh của "${record.employeeName}"?`)) {
       try {
-        // 1. Xóa trong state giao diện
+        // Xóa trong danh sách giao diện
         setAttendanceRecords(prev => prev.filter(r => r.id !== record.id));
-        
-        // 2. XÓA VĨNH VIỄN TRÊN CLOUD FIREBASE
+
+        // Xóa vĩnh viễn trên Cloud Firebase
         await deleteAttendanceRecordInCloud(record.id);
-        
+
         soundFX.playScanSuccess();
+        alert('✅ Đã xóa lượt điểm danh thành công!');
       } catch (err) {
         console.error('Lỗi khi xóa điểm danh trên cloud:', err);
+        alert('Lỗi kết nối khi xóa dữ liệu trên máy chủ.');
       }
     }
   };
