@@ -18,7 +18,7 @@ import {
   LogOut,
   AlertTriangle
 } from 'lucide-react';
-import { Employee, RoomBooking } from '../types';
+import { Employee, RoomBooking, maskEmployeeCode } from '../types';
 import { PRESET_ROOMS } from '../data/mockEmployees';
 import { exportRoomBookingsToExcel } from '../utils/exportExcel';
 import { soundFX } from '../utils/audio';
@@ -517,7 +517,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                       </h4>
 
                       <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
-                        <span><strong>Người đặt:</strong> {booking.bookedByName} (<span className="font-mono text-blue-700 font-bold">{booking.bookedByCode}</span>)</span>
+                        <span><strong>Người đặt:</strong> {booking.bookedByName} (<span className="font-mono text-blue-700 font-bold">{maskEmployeeCode(booking.bookedByCode)}</span>)</span>
                         <span><strong>Bộ phận:</strong> {booking.department}</span>
                         <span><strong>Tham dự:</strong> {booking.participantsCount} người</span>
                       </div>
