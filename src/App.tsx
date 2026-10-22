@@ -661,21 +661,6 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setActiveTab('department_pass')}
-            className={`py-3 px-4 font-bold border-b-2 flex items-center gap-2 transition-colors ${
-              activeTab === 'department_pass'
-                ? 'border-emerald-600 text-emerald-800 bg-emerald-50/60'
-                : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <ArrowLeftRight className="w-4 h-4" />
-            <span>Check-In / Out Bộ Phận</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-mono font-bold">
-              {passes.filter(p => p.status === 'active').length} đang ở xưởng
-            </span>
-          </button>
-
-          <button
             onClick={() => setActiveTab('room_booking')}
             className={`py-3 px-4 font-bold border-b-2 flex items-center gap-2 transition-colors ${
               activeTab === 'room_booking'
@@ -687,6 +672,21 @@ export default function App() {
             <span>Đặt Phòng Họp (Hạ Long & Bà Nà)</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-mono font-bold">
               {bookings.filter(b => b.status !== 'cancelled' && b.status !== 'completed').length}
+            </span>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('department_pass')}
+            className={`py-3 px-4 font-bold border-b-2 flex items-center gap-2 transition-colors ${
+              activeTab === 'department_pass'
+                ? 'border-emerald-600 text-emerald-800 bg-emerald-50/60'
+                : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <ArrowLeftRight className="w-4 h-4" />
+            <span>Check-In / Out Bộ Phận</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-mono font-bold">
+              {passes.filter(p => p.status === 'active').length} đang ở xưởng
             </span>
           </button>
 
@@ -765,6 +765,16 @@ export default function App() {
         </button>
 
         <button
+          onClick={() => setActiveTab('room_booking')}
+          className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-[10px] font-bold transition-colors ${
+            activeTab === 'room_booking' ? 'text-blue-600' : 'text-slate-500'
+          }`}
+        >
+          <CalendarDays className="w-5 h-5" />
+          <span>Phòng họp</span>
+        </button>
+        
+        <button
           onClick={() => setActiveTab('department_pass')}
           className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-[10px] font-bold transition-colors ${
             activeTab === 'department_pass' ? 'text-emerald-700' : 'text-slate-500'
@@ -792,16 +802,6 @@ export default function App() {
           className="w-12 h-12 -mt-5 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/35 active:scale-95 transition-transform"
         >
           <ScanLine className="w-6 h-6 animate-pulse" />
-        </button>
-
-        <button
-          onClick={() => setActiveTab('room_booking')}
-          className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl text-[10px] font-bold transition-colors ${
-            activeTab === 'room_booking' ? 'text-blue-600' : 'text-slate-500'
-          }`}
-        >
-          <CalendarDays className="w-5 h-5" />
-          <span>Phòng họp</span>
         </button>
 
         <button
