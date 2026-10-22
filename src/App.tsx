@@ -67,13 +67,11 @@ export default function App() {
       const saved = localStorage.getItem('smartfactory_prod_roster');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Nếu bộ nhớ tạm có đủ từ 5000 người trở lên thì mới lấy, nếu ít hơn 5000 người thì bỏ qua lấy gốc!
         if (Array.isArray(parsed) && parsed.length >= 5000) return parsed;
       }
     } catch {
       // ignore
     }
-    // MẶC ĐỊNH LUÔN LẤY ĐỦ 100% 5.379 NGƯỜI
     return INITIAL_EMPLOYEES;
   });
 
@@ -81,7 +79,7 @@ export default function App() {
     localStorage.setItem('smartfactory_prod_roster', JSON.stringify(employees));
   }, [employees]);
 
-  // Sessions for training & meetings (starts clean, created as needed)
+  // Sessions for training & meetings
   const [sessions, setSessions] = useState<TrainingSession[]>(() => {
     try {
       const saved = localStorage.getItem('smartfactory_prod_sessions');
@@ -98,14 +96,13 @@ export default function App() {
 
   const [activeSessionId, setActiveSessionId] = useState<string>(sessions[0]?.id || '');
 
-  // Keep activeSessionId in sync with sessions
   useEffect(() => {
     if (!activeSessionId && sessions.length > 0) {
       setActiveSessionId(sessions[0].id);
     }
   }, [sessions, activeSessionId]);
 
-  // Attendance Records (starts clean)
+  // Attendance Records
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() => {
     try {
       const saved = localStorage.getItem('smartfactory_prod_attendance');
@@ -120,7 +117,7 @@ export default function App() {
     localStorage.setItem('smartfactory_prod_attendance', JSON.stringify(attendanceRecords));
   }, [attendanceRecords]);
 
-  // Inter-department Passes (starts clean)
+  // Inter-department Passes
   const [passes, setPasses] = useState<DepartmentPassRecord[]>(() => {
     try {
       const saved = localStorage.getItem('smartfactory_prod_passes');
@@ -135,7 +132,7 @@ export default function App() {
     localStorage.setItem('smartfactory_prod_passes', JSON.stringify(passes));
   }, [passes]);
 
-  // Room Bookings (starts clean)
+  // Room Bookings
   const [bookings, setBookings] = useState<RoomBooking[]>(() => {
     try {
       const saved = localStorage.getItem('smartfactory_prod_bookings');
@@ -150,9 +147,8 @@ export default function App() {
     localStorage.setItem('smartfactory_prod_bookings', JSON.stringify(bookings));
   }, [bookings]);
 
-  // 1. Tự động đồng bộ từ Máy Chủ Local khi web vừa mở lên (trên cả PC và Điện thoại)
+  // 1. Tự động đồng bộ từ Máy Chủ Local khi web vừa mở lên
   useEffect(() => {
-    // Tải danh sách công nhân
     fetch('/api/local/employees')
       .then(res => res.json())
       .then((data: Employee[]) => {
@@ -163,7 +159,6 @@ export default function App() {
       })
       .catch(console.error);
 
-    // Tải lịch sử điểm danh
     fetch('/api/local/attendance')
       .then(res => res.json())
       .then((data: AttendanceRecord[]) => {
@@ -173,7 +168,6 @@ export default function App() {
       })
       .catch(console.error);
 
-    // Tải danh sách ra vào xưởng
     fetch('/api/local/passes')
       .then(res => res.json())
       .then((data: DepartmentPassRecord[]) => {
@@ -194,16 +188,10 @@ export default function App() {
     | null
   >(null);
 
-  // Virtual Card Modal Controller
   const [cardModalEmployee, setCardModalEmployee] = useState<Employee | null>(null);
-
-  // Production Guide Modal Controller
   const [showGuideModal, setShowGuideModal] = useState(false);
-
-  // Cloud sync indicator
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
 
-  // Company Logo (persisted in localStorage + Cloud Firestore)
   const [customLogo, setCustomLogo] = useState<string | null>(() => {
     try {
       return localStorage.getItem('smartfactory_custom_logo') || null;
@@ -214,7 +202,6 @@ export default function App() {
 
   const logoInputRef = useRef<HTMLInputElement | null>(null);
 
-  // 1. Initial Migration: Chỉ giữ logo nếu có, không tự ý bơm roster cũ lên Cloud
   useEffect(() => {
     const localLogo = localStorage.getItem('smartfactory_custom_logo');
     if (localLogo) {
@@ -222,9 +209,8 @@ export default function App() {
     }
   }, []);
 
-  // 2. Real-time Cloud Subscriptions across all devices
+  // Real-time Cloud Subscriptions
   useEffect(() => {
-    // Listen to Company Logo
     const unsubLogo = subscribeToCompanyLogo((cloudLogo) => {
       if (cloudLogo !== undefined) {
         setCustomLogo(cloudLogo);
@@ -236,16 +222,13 @@ export default function App() {
       }
     });
 
-    // Listen to Employees Roster (CHỐNG NHÁY VÀ CHỐNG ĐÈ MẤT 4.000 NGƯỜI)
     const unsubEmployees = subscribeToEmployees((cloudEmployees) => {
-      // Chỉ nhận từ Cloud nếu Cloud có đầy đủ (từ 5.000 người trở lên), không nhận nếu Cloud bị thiếu!
       if (cloudEmployees && cloudEmployees.length >= 5000) {
         setEmployees(cloudEmployees);
         localStorage.setItem('smartfactory_prod_roster', JSON.stringify(cloudEmployees));
       }
     });
 
-    // Listen to Training Sessions (Đồng bộ thời gian thực cho mọi thiết bị)
     const unsubSessions = subscribeToTrainingSessions((cloudSessions) => {
       if (cloudSessions) {
         setSessions(cloudSessions);
@@ -255,21 +238,18 @@ export default function App() {
       }
     });
 
-    // Listen to Attendance Records
     const unsubAttendance = subscribeToAttendanceRecords((cloudRecords) => {
       if (cloudRecords && cloudRecords.length > 0) {
         setAttendanceRecords(cloudRecords);
       }
     });
 
-    // Listen to Department Passes
     const unsubPasses = subscribeToDepartmentPasses((cloudPasses) => {
       if (cloudPasses && cloudPasses.length > 0) {
         setPasses(cloudPasses);
       }
     });
 
-    // Listen to Meeting Room Bookings
     const unsubBookings = subscribeToRoomBookings((cloudBookings) => {
       if (cloudBookings && cloudBookings.length > 0) {
         setBookings(cloudBookings);
@@ -293,7 +273,7 @@ export default function App() {
       showToast('info', 'Đang đồng bộ logo lên máy chủ đám mây...');
       try {
         await saveCompanyLogoToCloud(newLogoUrl);
-        showToast('success', 'Đã đồng bộ logo đám mây thành công!', 'Mọi điện thoại và máy tính khác vào web đều sẽ thấy logo mới.');
+        showToast('success', 'Đã đồng bộ logo đám mây thành công!');
       } catch (err) {
         console.error('Failed to sync logo to cloud:', err);
       }
@@ -332,7 +312,6 @@ export default function App() {
     if (logoInputRef.current) logoInputRef.current.value = '';
   };
 
-  // Toast
   const [toast, setToast] = useState<{
     type: 'success' | 'warning' | 'info';
     message: string;
@@ -344,19 +323,16 @@ export default function App() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  // Cloud-aware Employee List Update
   const handleSetEmployees: React.Dispatch<React.SetStateAction<Employee[]>> = (action) => {
     setEmployees(prev => {
       const next = typeof action === 'function' ? action(prev) : action;
-      
-      // Lưu tức thì về Máy Chủ Local (lưu thành file trên ổ cứng máy bạn)
       fetch('/api/local/employees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(next)
       })
       .then(() => {
-        showToast('success', 'Đã lưu vào máy chủ thành công!', `Tất cả điện thoại kết nối vào web sẽ tự động nhận ${next.length} công nhân viên.`);
+        showToast('success', 'Đã lưu vào máy chủ thành công!', `Tất cả thiết bị sẽ tự động nhận ${next.length} công nhân viên.`);
       })
       .catch(err => console.error('Lỗi lưu local server:', err));
 
@@ -431,10 +407,10 @@ export default function App() {
   };
 
   const handleBarcodeScanned = (
-      scannedCode: string, 
-      matchedEmployee?: Employee, 
-      scanMethod: 'camera_scan' | 'photo_scan' | 'manual_entry' = 'camera_scan'
-    ) => {
+    scannedCode: string, 
+    matchedEmployee?: Employee, 
+    scanMethod: 'camera_scan' | 'photo_scan' | 'manual_entry' = 'camera_scan'
+  ) => {
     const code = scannedCode.trim();
     const now = new Date();
     const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -514,7 +490,7 @@ export default function App() {
       return;
     }
 
-    // 3. Process Room Booking (CODE MỚI CHUẨN XỊN: CHỈ LẤY THÔNG TIN ĐIỀN VÀO FORM)
+    // 3. Process Room Booking
     if (scannerMode?.type === 'room_booking') {
       soundFX.playScanSuccess();
       showToast(
@@ -526,7 +502,7 @@ export default function App() {
       return;
     }
 
-    // 4. Process Room Check-in (ĐỒNG THỜI TỰ TẠO BUỔI HỌP BÊN TAB ĐIỂM DANH)
+    // 4. Process Room Check-in
     if (scannerMode?.type === 'room_check_in') {
       const targetBooking = bookings.find(b => b.id === scannerMode.bookingId);
       
@@ -543,7 +519,7 @@ export default function App() {
         return b;
       }));
 
-      // NẾU CÓ CUỘC HỌP -> TỰ ĐỘNG TẠO 1 BUỔI HỌP BÊN TAB ĐIỂM DANH
+      // Tự động tạo 1 buổi họp bên tab Điểm Danh
       if (targetBooking) {
         const autoSession: TrainingSession = {
           id: `session_auto_${targetBooking.id}`,
@@ -558,9 +534,7 @@ export default function App() {
           status: 'active'
         };
 
-        // Thêm vào danh sách buổi đào tạo & lưu Cloud
         setSessions(prev => {
-          // Tránh tạo trùng nếu đã có
           if (prev.some(s => s.id === autoSession.id || (s.title === autoSession.title && s.date === autoSession.date))) {
             return prev;
           }
@@ -578,6 +552,7 @@ export default function App() {
       setScannerOpen(false);
       return;
     }
+  }; // <-- DẤU } ĐÓNG CỦA HÀM handleBarcodeScanned CHÍNH NẰM Ở ĐÂY!
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col font-sans selection:bg-blue-600 selection:text-white pb-20 sm:pb-8">
@@ -605,7 +580,6 @@ export default function App() {
 
           {/* Cloud Sync & Action Buttons */}
           <div className="flex items-center gap-2">
-            {/* Realtime Cloud Sync Live Badge */}
             <div 
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs ${
                 isCloudSyncing 
