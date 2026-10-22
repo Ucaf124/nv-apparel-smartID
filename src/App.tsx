@@ -710,6 +710,7 @@ export default function App() {
             employees={employees}
             sessions={sessions}
             setSessions={setSessions}
+            bookings={bookings}
             attendanceRecords={attendanceRecords}
             setAttendanceRecords={setAttendanceRecords}
             activeSessionId={activeSessionId}
