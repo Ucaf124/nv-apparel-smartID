@@ -460,8 +460,19 @@ export default function App() {
       return;
     }
 
-    // 2. Process Department Pass
+    // 2. Process Department Pass (CHẶN NẾU KHÔNG CÓ TRONG DANH SÁCH NV)
     if (scannerMode?.type === 'department_pass') {
+      // KIỂM TRA XEM MÃ CÓ TRONG DANH SÁCH CÔNG NHÂN KHÔNG
+      const isExistInRoster = employees.some(
+        e => e.Employee_Code.trim().toLowerCase() === code.toLowerCase()
+      );
+
+      if (!isExistInRoster && !matchedEmployee) {
+        soundFX.playError();
+        alert(`❌ TỪ CHỐI TRUY CẬP!\n\nMã thẻ "${code}" không tồn tại trong danh sách công nhân viên của công ty.\nBạn không phải công nhân viên của NV, bạn không được vào!`);
+        return; // Chặn không cho ghi nhận
+      }
+
       const { fromDept, toDept, reason, passType } = scannerMode;
 
       const newPass: DepartmentPassRecord = {
@@ -473,10 +484,10 @@ export default function App() {
         fromDepartment: fromDept,
         toDepartment: toDept,
         reason: reason,
-        passType: passType,
+        passType: 'check_in',
         timestamp: timeStr,
         date: dateStr,
-        status: passType === 'check_in' ? 'active' : 'returned'
+        status: 'active'
       };
 
       setPasses(prev => [newPass, ...prev]);
@@ -484,9 +495,10 @@ export default function App() {
       soundFX.playScanSuccess();
       showToast(
         'success', 
-        `Ghi nhận ${passType === 'check_in' ? 'VÀO' : 'RA'} bộ phận thành công!`,
-        `${empName} (${code}) • ${fromDept} → ${toDept}`
+        'Ghi nhận VÀO bộ phận thành công!',
+        `${empName} (${code}) • ${fromDept} → ${toDept} lúc ${timeStr}`
       );
+      setScannerOpen(false);
       return;
     }
 
