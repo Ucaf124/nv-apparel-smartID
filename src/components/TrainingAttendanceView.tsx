@@ -20,7 +20,7 @@ import {
   Keyboard, 
   Camera 
 } from 'lucide-react';
-import { AttendanceRecord, Employee, TrainingSession } from '../types';
+import { AttendanceRecord, Employee, TrainingSession, maskEmployeeCode } from '../types';
 import { exportAttendanceToExcel } from '../utils/exportExcel';
 import { deleteAttendanceRecordInCloud } from '../services/firebaseSync';
 import { soundFX } from '../utils/audio';
@@ -352,7 +352,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                           {r.employeeName}
                         </div>
                         <div className="flex items-center gap-1.5 text-xs">
-                          <span className="font-mono font-bold text-blue-700">{r.employeeCode}</span>
+                          <span className="font-mono font-bold text-blue-700">{maskEmployeeCode(r.employeeCode)}</span>
                           <span className="text-slate-400">&bull;</span>
                           <span className="text-slate-600 truncate">{r.position}</span>
                         </div>
@@ -406,7 +406,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                         {index + 1}
                       </td>
                       <td className="p-3 font-mono font-bold text-blue-700">
-                        {r.employeeCode}
+                        {maskEmployeeCode(r.employeeCode)}
                       </td>
                       <td className="p-3 font-bold text-slate-900">
                         <div className="flex items-center gap-2">
