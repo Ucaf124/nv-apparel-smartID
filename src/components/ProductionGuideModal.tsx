@@ -116,7 +116,7 @@ export const ProductionGuideModal: React.FC<ProductionGuideModalProps> = ({
               </button>
             </div>
             <p className="text-[11px] text-slate-500 leading-snug">
-              Bạn có thể gửi link này qua nhóm Zalo, Telegram hoặc ghim lên màn hình chính điện thoại của quản đốc xưởng, nhân sự HR và phòng bảo vệ.
+              Bạn có thể gửi link này qua nhóm Zalo, Line,... để mọi người cùng sử dụng.
             </p>
           </div>
 
@@ -159,7 +159,7 @@ export const ProductionGuideModal: React.FC<ProductionGuideModalProps> = ({
                   <span className="font-extrabold text-slate-900 text-xs">Ghi Nhận Ra/Vào Giữa Các Bộ Phận (Thay Sổ Giấy)</span>
                 </div>
                 <p className="text-xs text-slate-600 pl-7 leading-relaxed">
-                  Nhân viên hoặc thợ bảo trì di chuyển giữa Xưởng 1, Xưởng 2, Tổ cắt, Kho vải chỉ cần quét mã vạch thẻ để ghi nhận <strong>Vào</strong> hoặc <strong>Ra</strong>. Quản đốc theo dõi danh sách ai đang có mặt trong xưởng theo thời gian thực.
+                  Nhân viên hoặc thợ bảo trì di chuyển giữa Xưởng 1, Xưởng 2, Tổ cắt, Kho vải chỉ cần quét mã vạch thẻ để ghi nhận <strong>Vào</strong> hoặc <strong>Ra</strong>. Quản lý theo dõi danh sách ai đang có mặt trong xưởng theo thời gian thực.
                 </p>
               </div>
 
