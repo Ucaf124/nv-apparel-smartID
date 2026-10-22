@@ -35,6 +35,7 @@ interface TrainingAttendanceViewProps {
   setAttendanceRecords: React.Dispatch<React.SetStateAction<AttendanceRecord[]>>;
   activeSessionId: string;
   setActiveSessionId: (id: string) => void;
+  bookings?: RoomBooking[];
 }
 
 export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
@@ -55,6 +56,8 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newInstructor, setNewInstructor] = useState('');
   const [newLocation, setNewLocation] = useState('Phòng Họp Vịnh Hạ Long');
+  const [selectedLocationType, setSelectedLocationType] = useState('Phòng Họp Vịnh Hạ Long');
+  const [customLocationName, setCustomLocationName] = useState('');
   const [newType, setNewType] = useState<'training' | 'meeting' | 'safety' | 'other'>('training');
   const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
   const [newStartTime, setNewStartTime] = useState('08:30');
@@ -75,11 +78,43 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     e.preventDefault();
     if (!newTitle.trim()) return;
 
+    // Xác định địa điểm cuối cùng
+    const finalLocation = selectedLocationType === 'other' 
+      ? (customLocationName.trim() || 'Phòng họp khác')
+      : selectedLocationType;
+
+    // KIỂM TRA TRÙNG LỊCH NẾU CHỌN 2 PHÒNG HỌP CỐ ĐỊNH
+    const isHaLong = finalLocation.includes('Hạ Long') || finalLocation.includes('NV1');
+    const isBaNa = finalLocation.includes('Bà Nà') || finalLocation.includes('NV2');
+
+    if (isHaLong || isBaNa) {
+      const checkRoomId = isHaLong ? 'vinh_ha_long' : 'ba_na_hill';
+      const conflict = (bookings || []).find(b => {
+        if (b.roomId !== checkRoomId || b.date !== newDate || b.status === 'cancelled' || b.status === 'completed') {
+          return false;
+        }
+        // Kiểm tra chồng chéo thời gian
+        return (
+          (newStartTime >= b.startTime && newStartTime < b.endTime) ||
+          (newEndTime > b.startTime && newEndTime <= b.endTime) ||
+          (newStartTime <= b.startTime && newEndTime >= b.endTime)
+        );
+      });
+
+      if (conflict) {
+        soundFX.playError();
+        alert(
+          `⚠️ PHÒNG ĐÃ CÓ NGƯỜI ĐẶT TRƯỚC!\n\nĐịa điểm: ${finalLocation}\nThời gian: ${conflict.startTime} - ${conflict.endTime}\nCuộc họp: "${conflict.title}" do ${conflict.bookedByName} đặt.\n\nVui lòng chọn khung giờ khác hoặc chọn "Phòng khác"!`
+        );
+        return;
+      }
+    }
+
     const newSession: TrainingSession = {
       id: `session_${Date.now()}`,
       title: newTitle.trim(),
       instructor: newInstructor.trim() || 'Ban Đào Tạo & Nhân Sự',
-      location: newLocation,
+      location: finalLocation,
       date: newDate,
       startTime: newStartTime,
       endTime: newEndTime,
@@ -88,17 +123,15 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
       status: 'active'
     };
 
-    // 1. Cập nhật state giao diện
     setSessions([newSession, ...sessions]);
     setActiveSessionId(newSession.id);
-
-    // 2. ĐẨY NGAY LÊN MÁY CHỦ CLOUD ĐỂ ĐIỆN THOẠI CŨNG NHẬN ĐƯỢC
     saveTrainingSessionToCloud(newSession).catch(console.error);
 
     soundFX.playScanSuccess();
     setShowCreateModal(false);
     setNewTitle('');
     setNewInstructor('');
+    setCustomLocationName('');
   };
 
   const handleExport = () => {
@@ -537,18 +570,36 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-slate-700 mb-1 font-bold">
-                  Địa Điểm
-                </label>
-                <select
-                  value={newLocation}
-                  onChange={(e) => setNewLocation(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
-                >
-                  <option value="Phòng Họp Vịnh Hạ Long">Phòng Họp Vịnh Hạ Long (NV1)</option>
-                  <option value="Phòng Họp Bà Nà Hill">Phòng Họp Bà Nà Hill (NV2)</option>
-                </select>
-              </div>
+                  <label className="block text-slate-700 mb-1 font-bold">
+                    Địa Điểm Họp / Đào Tạo <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={selectedLocationType}
+                    onChange={(e) => setSelectedLocationType(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
+                  >
+                    <option value="Phòng Họp Vịnh Hạ Long (NV1)">Phòng Họp Vịnh Hạ Long (Nhà máy NV1)</option>
+                    <option value="Phòng Họp Bà Nà Hill (NV2)">Phòng Họp Bà Nà Hill (Nhà máy NV2)</option>
+                    <option value="other">📍 Phòng khác / Khu vực khác...</option>
+                  </select>
+                
+                  {/* NẾU CHỌN PHÒNG KHÁC -> HIỆN THÊM Ô NHẬP TÊN PHÒNG */}
+                  {selectedLocationType === 'other' && (
+                    <div className="mt-2 animate-in fade-in duration-150">
+                      <input
+                        type="text"
+                        required
+                        value={customLocationName}
+                        onChange={(e) => setCustomLocationName(e.target.value)}
+                        placeholder="Gõ tên phòng hoặc địa điểm (VD: Hội trường nhà ăn, Xưởng May 1...)"
+                        className="w-full px-3 py-2.5 bg-blue-50/60 border border-blue-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium text-xs placeholder-slate-400"
+                      />
+                      <p className="text-[11px] text-slate-500 mt-1 italic">
+                        * Khi chọn phòng khác, hệ thống sẽ không kiểm tra trùng lịch với 2 phòng họp cố định.
+                      </p>
+                    </div>
+                  )}
+                </div>
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
