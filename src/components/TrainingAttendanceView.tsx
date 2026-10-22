@@ -100,6 +100,18 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
       alert('Chưa có công nhân viên nào điểm danh trong phiên này để xuất file!');
       return;
     }
+  
+    // Khóa mật khẩu tải file Excel
+    const pin = prompt('🔐 BẢO MẬT XUẤT BÁO CÁO\n\nFile Excel chứa đầy đủ thông tin và mã thẻ nhân sự.\nVui lòng nhập Mật khẩu Quản trị để tải:');
+    if (pin === null) return; // Bấm Cancel
+  
+    if (pin.trim() !== '8888') {
+      soundFX.playError();
+      alert('❌ Mật khẩu không đúng! Bạn không có quyền tải file báo cáo này.');
+      return;
+    }
+  
+    soundFX.playScanSuccess();
     exportAttendanceToExcel(currentSession, currentRecords);
   };
 
