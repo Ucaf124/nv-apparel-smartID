@@ -24,7 +24,6 @@ import { AttendanceRecord, Employee, TrainingSession, maskEmployeeCode } from '.
 import { exportAttendanceToExcel } from '../utils/exportExcel';
 import { deleteAttendanceRecordInCloud, deleteTrainingSessionInCloud, saveTrainingSessionToCloud } from '../services/firebaseSync';
 import { soundFX } from '../utils/audio';
-import { saveTrainingSessionToCloud } from '../services/firebaseSync';
 
 interface TrainingAttendanceViewProps {
   employees: Employee[];
