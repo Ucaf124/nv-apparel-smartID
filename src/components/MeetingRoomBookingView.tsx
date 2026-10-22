@@ -255,6 +255,24 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     }
   };
 
+  const handleExportRoomBookings = () => {
+    if (bookings.length === 0) {
+      alert('Chưa có dữ liệu lịch đặt phòng để xuất file!');
+      return;
+    }
+  
+    const pin = prompt('🔐 BẢO MẬT XUẤT LỊCH PHÒNG HỌP\n\nFile Excel chứa thông tin người đặt và mã thẻ đầy đủ.\nVui lòng nhập Mật khẩu Quản trị để tải:');
+    if (pin === null) return;
+  
+    if (pin.trim() !== '8888') {
+      soundFX.playError();
+      alert('❌ Mật khẩu không đúng! Bạn không có quyền tải file lịch phòng họp.');
+      return;
+    }
+  
+    soundFX.playScanSuccess();
+    exportRoomBookingsToExcel(bookings);
+  };
   return (
     <div className="space-y-5">
       {/* Title & Banner */}
@@ -282,7 +300,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
             </button>
 
             <button
-              onClick={() => exportRoomBookingsToExcel(bookings)}
+              onClick={handleExportRoomBookings}
               className="flex-1 sm:flex-none px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
             >
               <FileSpreadsheet className="w-4 h-4" />
