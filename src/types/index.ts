@@ -71,6 +71,7 @@ export interface DepartmentPassRecord {
   date: string;
   status: 'active' | 'returned';
   returnTime?: string;
+  returnDate?: string;
   note?: string;
 }
 
