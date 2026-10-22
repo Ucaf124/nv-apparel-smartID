@@ -710,12 +710,12 @@ export default function App() {
             employees={employees}
             sessions={sessions}
             setSessions={setSessions}
-            bookings={bookings}
             attendanceRecords={attendanceRecords}
             setAttendanceRecords={setAttendanceRecords}
             activeSessionId={activeSessionId}
             setActiveSessionId={setActiveSessionId}
             onOpenScanner={handleOpenScannerForAttendance}
+            bookings={bookings} // Truyền bookings sang để check trùng phòng
           />
         )}
 
@@ -732,7 +732,7 @@ export default function App() {
           <MeetingRoomBookingView
             employees={employees}
             bookings={bookings}
-            setSessions={setSessions}
+            setSessions={setSessions} // Truyền setSessions sang để tự tạo buổi họp khi nhận phòng
             setBookings={setBookings}
             onOpenScannerForRoomBooking={handleOpenScannerForRoomBooking}
             onOpenScannerForRoomCheckIn={handleOpenScannerForRoomCheckIn}
