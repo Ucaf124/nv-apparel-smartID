@@ -526,8 +526,10 @@ export default function App() {
       return;
     }
 
-    // 4. Process Room Check-in
+    // 4. Process Room Check-in (ĐỒNG THỜI TỰ TẠO BUỔI HỌP BÊN TAB ĐIỂM DANH)
     if (scannerMode?.type === 'room_check_in') {
+      const targetBooking = bookings.find(b => b.id === scannerMode.bookingId);
+      
       setBookings(prev => prev.map(b => {
         if (b.id === scannerMode.bookingId) {
           const updated = {
@@ -540,12 +542,42 @@ export default function App() {
         }
         return b;
       }));
+
+      // NẾU CÓ CUỘC HỌP -> TỰ ĐỘNG TẠO 1 BUỔI HỌP BÊN TAB ĐIỂM DANH
+      if (targetBooking) {
+        const autoSession: TrainingSession = {
+          id: `session_auto_${targetBooking.id}`,
+          title: targetBooking.title,
+          instructor: targetBooking.hostName || targetBooking.bookedByName,
+          location: targetBooking.roomName,
+          date: targetBooking.date,
+          startTime: targetBooking.startTime,
+          endTime: targetBooking.endTime,
+          type: 'meeting',
+          createdAt: new Date().toISOString(),
+          status: 'active'
+        };
+
+        // Thêm vào danh sách buổi đào tạo & lưu Cloud
+        setSessions(prev => {
+          // Tránh tạo trùng nếu đã có
+          if (prev.some(s => s.id === autoSession.id || (s.title === autoSession.title && s.date === autoSession.date))) {
+            return prev;
+          }
+          return [autoSession, ...prev];
+        });
+        saveTrainingSessionToCloud(autoSession).catch(console.error);
+      }
+
       soundFX.playScanSuccess();
-      showToast('success', 'Check-in phòng họp thành công!', `${empName} đã xác nhận nhận phòng lúc ${timeStr}`);
+      showToast(
+        'success', 
+        'Nhận phòng & Tạo buổi điểm danh thành công!', 
+        `Đã tạo buổi họp "${targetBooking?.title}" bên tab Điểm Danh để quét thẻ người tham dự.`
+      );
       setScannerOpen(false);
       return;
     }
-  };
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col font-sans selection:bg-blue-600 selection:text-white pb-20 sm:pb-8">
