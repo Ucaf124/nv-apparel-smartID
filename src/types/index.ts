@@ -104,3 +104,11 @@ export interface RoomBooking {
   checkedOutAt?: string;
   createdAt: string;
 }
+
+// Hàm ẩn 3 số cuối của mã thẻ để bảo mật: VD '210170019' -> '210170***'
+export function maskEmployeeCode(code: string | undefined): string {
+  if (!code) return '';
+  const clean = code.trim();
+  if (clean.length <= 3) return '***';
+  return clean.slice(0, -3) + '***';
+}
