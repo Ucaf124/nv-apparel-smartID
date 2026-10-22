@@ -46,7 +46,8 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
   attendanceRecords,
   setAttendanceRecords,
   activeSessionId,
-  setActiveSessionId
+  setActiveSessionId,
+  bookings
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
