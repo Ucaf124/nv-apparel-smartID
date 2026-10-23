@@ -226,7 +226,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
     const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + todayStr;
 
-    // Cập nhật trạng thái booking thành confirmed
+    // 1. Tạo object booking đã duyệt
     const updatedBooking: RoomBooking = {
       ...approvingBooking,
       status: 'confirmed',
@@ -234,10 +234,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       approvedAt: nowStr
     };
 
-    setBookings(prev => prev.map(b => b.id === approvingBooking.id ? updatedBooking : b));
-    await saveRoomBookingToCloud(updatedBooking);
-
-    // TỰ ĐỘNG TẠO BUỔI HỌP BÊN TAB ĐIỂM DANH ĐÀO TẠO & HỌP
+    // 2. Tạo object buổi họp bên Điểm danh
     const autoSession: TrainingSession = {
       id: `session_auto_${updatedBooking.id}`,
       title: updatedBooking.title,
@@ -251,6 +248,9 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       status: 'active'
     };
 
+    // 3. Cập nhật state giao diện máy hiện tại ngay lập tức
+    setBookings(prev => prev.map(b => b.id === approvingBooking.id ? updatedBooking : b));
+
     if (setSessions) {
       setSessions(prev => {
         if (prev.some(s => s.id === autoSession.id || (s.title === autoSession.title && s.date === autoSession.date))) {
@@ -259,7 +259,17 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
         return [autoSession, ...prev];
       });
     }
-    await saveTrainingSessionToCloud(autoSession);
+
+    // 4. LƯU LÊN CLOUD FIREBASE (CHẠY SONG SONG ĐỘC LẬP - BẢO ĐẢM CẢ 2 ĐỀU ĐƯỢC ĐẨY LÊN)
+    try {
+      await Promise.all([
+        saveRoomBookingToCloud(updatedBooking),
+        saveTrainingSessionToCloud(autoSession)
+      ]);
+      console.log('Đã đồng bộ trạng thái duyệt và buổi điểm danh lên Cloud thành công!');
+    } catch (err) {
+      console.error('Lỗi khi đẩy dữ liệu duyệt lên Cloud:', err);
+    }
 
     soundFX.playScanSuccess();
     setApprovingBooking(null);
