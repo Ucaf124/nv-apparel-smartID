@@ -465,7 +465,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             <div className="text-center space-y-1">
               <h4 className="font-extrabold text-sm text-slate-900">Nhập Mã Số Thẻ Nhân Viên</h4>
               <p className="text-xs text-slate-500">
-                Nhập số in dưới mã vạch trên thẻ (VD: 210181178)
+                Nhập đủ 9 chữ số in dưới mã vạch trên thẻ công nhân viên
               </p>
             </div>
 
@@ -477,7 +477,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                   autoFocus
                   value={manualCode}
                   onChange={(e) => setManualCode(e.target.value)}
-                  placeholder="Nhập mã nhân viên..."
+                  placeholder="Nhập đủ 9 chữ số mã thẻ..."
                   className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 shadow-sm"
                 />
               </div>
