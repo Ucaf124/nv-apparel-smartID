@@ -20,7 +20,7 @@ import { AttendanceRecord, DepartmentPassRecord, Employee, RoomBooking, Training
 
 // Khởi tạo Firebase
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
+export const db = getFirestore(app);
 export const auth = getAuth(app);
 
 // Luôn cố gắng xác thực ẩn danh
