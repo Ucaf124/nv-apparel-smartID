@@ -363,7 +363,7 @@ export function subscribeToRoomBookings(callback: (bookings: RoomBooking[]) => v
 export async function saveRoomBookingToCloud(booking: RoomBooking) {
   if (isQuotaExhausted) return;
   try {
-    await setDoc(doc(db, 'room_bookings', booking.id), booking);
+    await setDoc(doc(db, 'room_bookings', booking.id), booking, { merge: true });
   } catch (err) {
     handleFirebaseError('saveRoomBookingToCloud', err);
   }
