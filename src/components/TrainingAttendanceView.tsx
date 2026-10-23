@@ -55,6 +55,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
   // Form state for creating new session
   const [newTitle, setNewTitle] = useState('');
   const [newInstructor, setNewInstructor] = useState('');
+  const [customTypeName, setCustomTypeName] = useState('');
   const [newLocation, setNewLocation] = useState('Phòng Họp Vịnh Hạ Long');
   const [selectedLocationType, setSelectedLocationType] = useState('Phòng Họp Vịnh Hạ Long');
   const [customLocationName, setCustomLocationName] = useState('');
@@ -78,7 +79,10 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     e.preventDefault();
     if (!newTitle.trim()) return;
 
-    // Xác định địa điểm cuối cùng
+    // Xác định tên phân loại: nếu chọn 'other' thì lấy chuỗi tự gõ
+    const finalType = newType === 'other' ? (customTypeName.trim() || 'Hoạt động khác') : newType;
+
+    // Xác định địa điểm
     const finalLocation = selectedLocationType === 'other' 
       ? (customLocationName.trim() || 'Phòng họp khác')
       : selectedLocationType;
@@ -124,7 +128,8 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
       date: newDate,
       startTime: newStartTime,
       endTime: newEndTime,
-      type: newType,
+      type: finalType, // Lưu đúng tên phân loại vừa nhập
+      customTypeName: newType === 'other' ? customTypeName.trim() : undefined,
       createdAt: new Date().toISOString(),
       status: 'active'
     };
@@ -138,6 +143,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     setNewTitle('');
     setNewInstructor('');
     setCustomLocationName('');
+    setCustomTypeName(''); // Reset ô nhập
   };
 
   const handleExport = () => {
@@ -278,7 +284,8 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                   currentSession.type === 'training' ? 'bg-blue-100 text-blue-800 border border-blue-300' : 'bg-purple-100 text-purple-800 border border-purple-300'
                 }`}>
                   {currentSession.type === 'safety' ? 'An toàn lao động' :
-                   currentSession.type === 'training' ? 'Đào tạo nội bộ' : 'Cuộc họp'}
+                   currentSession.type === 'training' ? 'Đào tạo nội bộ' :
+                   currentSession.type === 'meeting' ? 'Cuộc họp' : currentSession.type}
                 </span>
                 <span className="text-xs text-slate-600 flex items-center gap-1 font-medium">
                   <Calendar className="w-3.5 h-3.5 text-blue-600" /> {currentSession.date}
@@ -628,18 +635,31 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
 
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
-                  Phân Loại
+                  Phân Loại <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={newType}
-                  onChange={(e) => setNewType(e.target.value as unknown as 'training' | 'meeting' | 'safety' | 'other')}
+                  onChange={(e) => setNewType(e.target.value)}
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
                 >
                   <option value="training">Đào tạo tay nghề & Kỹ thuật</option>
                   <option value="safety">An toàn lao động & PCCC</option>
                   <option value="meeting">Họp giao ban / Cuộc họp nội bộ</option>
-                  <option value="other">Hoạt động khác</option>
+                  <option value="other">📌 Hoạt động khác...</option>
                 </select>
+
+                {newType === 'other' && (
+                  <div className="mt-2 animate-in fade-in duration-150">
+                    <input
+                      type="text"
+                      required
+                      value={customTypeName}
+                      onChange={(e) => setCustomTypeName(e.target.value)}
+                      placeholder="Gõ tên phân loại (VD: Khám sức khỏe định kỳ, Tập huấn 5S, Team building...)"
+                      className="w-full px-3 py-2 bg-purple-50/70 border border-purple-300 rounded-xl text-slate-900 focus:outline-none focus:border-purple-500 font-medium text-xs placeholder-slate-400"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
