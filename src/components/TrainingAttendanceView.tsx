@@ -83,17 +83,23 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
       ? (customLocationName.trim() || 'Phòng họp khác')
       : selectedLocationType;
 
-    // KIỂM TRA TRÙNG LỊCH NẾU CHỌN 2 PHÒNG HỌP CỐ ĐỊNH
+    // KIỂM TRA TRÙNG LỊCH VỚI ĐẶT PHÒNG NẾU CHỌN 2 PHÒNG CỐ ĐỊNH
     const isHaLong = finalLocation.includes('Hạ Long') || finalLocation.includes('NV1');
     const isBaNa = finalLocation.includes('Bà Nà') || finalLocation.includes('NV2');
 
     if (isHaLong || isBaNa) {
       const checkRoomId = isHaLong ? 'vinh_ha_long' : 'ba_na_hill';
       const conflict = (bookings || []).find(b => {
-        if (b.roomId !== checkRoomId || b.date !== newDate || b.status === 'cancelled' || b.status === 'completed') {
+        if (b.roomId !== checkRoomId || b.status === 'cancelled' || b.status === 'rejected') {
           return false;
         }
-        // Kiểm tra chồng chéo thời gian
+
+        // Kiểm tra xem ngày newDate có nằm trong khoảng [b.date -> b.endDate] không
+        const end = b.endDate || b.date;
+        const dateInRange = newDate >= b.date && newDate <= end;
+        if (!dateInRange) return false;
+
+        // Kiểm tra đụng giờ
         return (
           (newStartTime >= b.startTime && newStartTime < b.endTime) ||
           (newEndTime > b.startTime && newEndTime <= b.endTime) ||
@@ -104,7 +110,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
       if (conflict) {
         soundFX.playError();
         alert(
-          `⚠️ PHÒNG ĐÃ CÓ NGƯỜI ĐẶT TRƯỚC!\n\nĐịa điểm: ${finalLocation}\nThời gian: ${conflict.startTime} - ${conflict.endTime}\nCuộc họp: "${conflict.title}" do ${conflict.bookedByName} đặt.\n\nVui lòng chọn khung giờ khác hoặc chọn "Phòng khác"!`
+          `⚠️ PHÒNG ĐÃ CÓ NGƯỜI ĐẶT TRƯỚC!\n\nĐịa điểm: ${finalLocation}\nThời gian: ${conflict.startTime} - ${conflict.endTime}\nCuộc họp: "${conflict.title}"\nTrạng thái: ${conflict.status === 'confirmed' ? 'Đã duyệt' : 'Chờ duyệt'}\n\nVui lòng chọn giờ khác hoặc chọn "Phòng khác"!`
         );
         return;
       }
@@ -650,36 +656,32 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
               </div>
 
               <div>
-                  <label className="block text-slate-700 mb-1 font-bold">
-                    Địa Điểm Họp / Đào Tạo <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    value={selectedLocationType}
-                    onChange={(e) => setSelectedLocationType(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
-                  >
-                    <option value="Phòng Họp Vịnh Hạ Long (NV1)">Phòng Họp Vịnh Hạ Long (Nhà máy NV1)</option>
-                    <option value="Phòng Họp Bà Nà Hill (NV2)">Phòng Họp Bà Nà Hill (Nhà máy NV2)</option>
-                    <option value="other">📍 Phòng khác / Khu vực khác...</option>
-                  </select>
-                
-                  {/* NẾU CHỌN PHÒNG KHÁC -> HIỆN THÊM Ô NHẬP TÊN PHÒNG */}
-                  {selectedLocationType === 'other' && (
-                    <div className="mt-2 animate-in fade-in duration-150">
-                      <input
-                        type="text"
-                        required
-                        value={customLocationName}
-                        onChange={(e) => setCustomLocationName(e.target.value)}
-                        placeholder="Gõ tên phòng hoặc địa điểm (VD: Hội trường nhà ăn, Xưởng May 1...)"
-                        className="w-full px-3 py-2.5 bg-blue-50/60 border border-blue-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium text-xs placeholder-slate-400"
-                      />
-                      <p className="text-[11px] text-slate-500 mt-1 italic">
-                        * Khi chọn phòng khác, hệ thống sẽ không kiểm tra trùng lịch với 2 phòng họp cố định.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <label className="block text-slate-700 mb-1 font-bold">
+                  Địa Điểm Họp / Đào Tạo <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={selectedLocationType}
+                  onChange={(e) => setSelectedLocationType(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
+                >
+                  <option value="Phòng Họp Vịnh Hạ Long (NV1)">Phòng Họp Vịnh Hạ Long (Nhà máy NV1)</option>
+                  <option value="Phòng Họp Bà Nà Hill (NV2)">Phòng Họp Bà Nà Hill (Nhà máy NV2)</option>
+                  <option value="other">📍 Phòng khác / Khu vực khác...</option>
+                </select>
+              
+                {selectedLocationType === 'other' && (
+                  <div className="mt-2">
+                    <input
+                      type="text"
+                      required
+                      value={customLocationName}
+                      onChange={(e) => setCustomLocationName(e.target.value)}
+                      placeholder="Gõ tên phòng hoặc địa điểm (VD: Hội trường nhà ăn, Xưởng May 1...)"
+                      className="w-full px-3 py-2 bg-blue-50/60 border border-blue-300 rounded-xl text-slate-900 text-xs font-bold"
+                    />
+                  </div>
+                )}
+              </div>
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
