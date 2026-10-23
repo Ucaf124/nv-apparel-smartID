@@ -36,7 +36,7 @@ export interface TrainingSession {
   date: string;
   startTime: string;
   endTime: string;
-  type: 'training' | 'meeting' | 'safety' | 'other';
+  type: 'training' | 'meeting' | 'safety' | 'other' | string;
   description?: string;
   createdAt: string;
   status: 'active' | 'completed' | 'cancelled';
