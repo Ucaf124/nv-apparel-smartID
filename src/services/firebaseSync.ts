@@ -57,6 +57,17 @@ async function testConnection() {
 }
 testConnection();
 
+// Hàm lọc bỏ các trường undefined để Firestore không bao giờ bị lỗi
+function cleanDataForFirestore<T extends Record<string, any>>(obj: T): Partial<T> {
+  const cleaned: any = {};
+  Object.keys(obj).forEach(key => {
+    if (obj[key] !== undefined) {
+      cleaned[key] = obj[key];
+    }
+  });
+  return cleaned;
+}
+
 // ======================= APP SETTINGS / LOGO SYNC =======================
 
 export function subscribeToCompanyLogo(callback: (logoUrl: string | null) => void) {
@@ -226,9 +237,12 @@ export function subscribeToTrainingSessions(callback: (sessions: TrainingSession
 export async function saveTrainingSessionToCloud(session: TrainingSession) {
   if (isQuotaExhausted) return;
   try {
-    await setDoc(doc(db, 'training_sessions', session.id), session);
+    const dataToSave = cleanDataForFirestore(session);
+    await setDoc(doc(db, 'training_sessions', session.id), dataToSave, { merge: true });
+    console.log('[Firestore] Đã lưu TrainingSession thành công:', session.id, session.title);
   } catch (err) {
     handleFirebaseError('saveTrainingSessionToCloud', err);
+    throw err;
   }
 }
 
@@ -363,9 +377,12 @@ export function subscribeToRoomBookings(callback: (bookings: RoomBooking[]) => v
 export async function saveRoomBookingToCloud(booking: RoomBooking) {
   if (isQuotaExhausted) return;
   try {
-    await setDoc(doc(db, 'room_bookings', booking.id), booking, { merge: true });
+    const dataToSave = cleanDataForFirestore(booking);
+    await setDoc(doc(db, 'room_bookings', booking.id), dataToSave, { merge: true });
+    console.log('[Firestore] Đã lưu RoomBooking thành công:', booking.id, booking.status);
   } catch (err) {
     handleFirebaseError('saveRoomBookingToCloud', err);
+    throw err;
   }
 }
 
