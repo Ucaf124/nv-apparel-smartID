@@ -29,8 +29,16 @@ const firebaseConfig = {
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// KẾT NỐI VÀO DATABASE 'default' (HOẶC GỌI KHÔNG THAM SỐ)
-export const db = getFirestore(app);
+// KẾT NỐI CHUẨN XÁC: Truyền rõ databaseId 'default' (hoặc tự fallback nếu lỗi)
+// Thao tác này xử lý triệt để lỗi "Database '(default)' not found"
+let firestoreDb;
+try {
+  firestoreDb = getFirestore(app, 'default');
+} catch (e) {
+  firestoreDb = getFirestore(app);
+}
+
+export const db = firestoreDb;
 export const auth = getAuth(app);
 
 // Đăng nhập ẩn danh
