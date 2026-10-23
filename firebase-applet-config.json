@@ -3,7 +3,7 @@
   "appId": "1:884508830966:web:23931edcfa1832a3e910d7",
   "apiKey": "AIzaSyCj82ngc_TpFkU-cOOENB3Ewd9ufWApeDk",
   "authDomain": "nva-smart-pass.firebaseapp.com",
-  "firestoreDatabaseId": "(default)",
+  "firestoreDatabaseId": "",
   "storageBucket": "nva-smart-pass.firebasestorage.app",
   "messagingSenderId": "884508830966",
   "measurementId": "",
