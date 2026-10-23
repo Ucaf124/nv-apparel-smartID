@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Clock, 
   Users, 
@@ -15,8 +15,14 @@ import {
   Trash2, 
   MapPin, 
   CalendarDays,
-  LogOut,
-  AlertTriangle
+  Calendar as CalendarIcon,
+  Check,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ShieldCheck,
+  UserCheck,
+  Lock
 } from 'lucide-react';
 import { Employee, RoomBooking, TrainingSession, maskEmployeeCode } from '../types';
 import { PRESET_ROOMS } from '../data/mockEmployees';
@@ -24,13 +30,20 @@ import { exportRoomBookingsToExcel } from '../utils/exportExcel';
 import { soundFX } from '../utils/audio';
 import { deleteRoomBookingInCloud, saveRoomBookingToCloud, saveTrainingSessionToCloud } from '../services/firebaseSync';
 
+// Danh sách tài khoản có quyền duyệt đặt phòng họp
+const APPROVERS = [
+  { username: 'duypt', pass: 'duypt@356', name: 'Phan Thị Mỹ Duyên', code: '210190653' },
+  { username: 'yaitp', pass: 'yaitp#632', name: 'Thaisit Phawang (Yai)', code: '210180632' },
+  { username: 'admin', pass: '8888', name: 'Quản Trị Viên (Admin)', code: 'ADMIN' }
+];
+
 interface MeetingRoomBookingViewProps {
   employees: Employee[];
   bookings: RoomBooking[];
   setSessions?: React.Dispatch<React.SetStateAction<TrainingSession[]>>;
   setBookings: React.Dispatch<React.SetStateAction<RoomBooking[]>>;
   onOpenScannerForRoomBooking: (roomId: string, date: string) => void;
-  onOpenScannerForRoomCheckIn: (bookingId: string) => void;
+  onOpenScannerForRoomCheckIn?: (bookingId: string) => void;
 }
 
 export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
@@ -38,157 +51,75 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
   bookings,
   setSessions,
   setBookings,
-  onOpenScannerForRoomBooking,
-  onOpenScannerForRoomCheckIn
+  onOpenScannerForRoomBooking
 }) => {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Chế độ xem: 'calendar' (Lịch tháng) hoặc 'list' (Chi tiết theo ngày)
+  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
+  const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedRoomId, setSelectedRoomId] = useState<string>('vinh_ha_long');
-  const [showBookingModal, setShowBookingModal] = useState(false);
 
-  // Đồng hồ chạy thời gian thực để tự tính toán lố giờ từng phút
-  const [currentTimeStr, setCurrentTimeStr] = useState(() => {
-    const d = new Date();
-    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-  });
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const d = new Date();
-      setCurrentTimeStr(`${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`);
-    }, 10000); // cập nhật mỗi 10 giây
-    return () => clearInterval(timer);
-  }, []);
+  // Điều hướng tháng trong Lịch Tháng
+  const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth()); // 0 - 11
 
   // Form states
+  const [showBookingModal, setShowBookingModal] = useState(false);
   const [modalRoomId, setModalRoomId] = useState('vinh_ha_long');
   const [bookTitle, setBookTitle] = useState('');
+  const [bookHostName, setBookHostName] = useState('');
   const [bookEmpCode, setBookEmpCode] = useState('');
   const [bookEmpName, setBookEmpName] = useState('');
   const [bookDept, setBookDept] = useState('');
   const [bookPhone, setBookPhone] = useState('');
-  const [bookHostName, setBookHostName] = useState('');
+  
+  // Đặt phòng theo dải ngày: Từ ngày -> Đến ngày
+  const [bookStartDate, setBookStartDate] = useState(todayStr);
+  const [bookEndDate, setBookEndDate] = useState(todayStr);
+  
   const [bookStartTime, setBookStartTime] = useState('09:00');
   const [bookEndTime, setBookEndTime] = useState('10:30');
   const [bookParticipants, setBookParticipants] = useState(10);
   const [selectedEquipments, setSelectedEquipments] = useState<string[]>(['Máy chiếu 4K Ultra HD', 'Bảng kính']);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Popup duyệt đăng nhập
+  const [approvingBooking, setApprovingBooking] = useState<RoomBooking | null>(null);
+  const [approverUser, setApproverUser] = useState('');
+  const [approverPass, setApproverPass] = useState('');
+  const [approverError, setApproverError] = useState('');
+
+  const currentRoom = PRESET_ROOMS.find(r => r.id === selectedRoomId) || PRESET_ROOMS[0];
+
   const handleEmpCodeChange = (code: string) => {
     setBookEmpCode(code);
     const found = employees.find(e => e.Employee_Code.trim().toLowerCase() === code.trim().toLowerCase());
     if (found) {
-      setBookEmpName(found.Full_Name || `${found.Name} ${found.Surname}`);
+      const name = found.Full_Name || `${found.Name} ${found.Surname}`;
+      setBookEmpName(name);
       setBookDept(found.Department_Eng);
+      if (!bookHostName) setBookHostName(name);
       if (found.Phone) setBookPhone(found.Phone);
     }
   };
 
-  const currentRoom = PRESET_ROOMS.find(r => r.id === selectedRoomId) || PRESET_ROOMS[0];
-  const dateBookings = bookings.filter(b => b.date === selectedDate);
-  const roomBookings = dateBookings.filter(b => b.roomId === selectedRoomId);
-  const isToday = selectedDate === new Date().toISOString().split('T')[0];
-
-  // Hàm tính số phút chênh lệch giữa 2 mốc thời gian HH:mm
-  const getMinutesDiff = (t1: string, t2: string) => {
-    const [h1, m1] = t1.split(':').map(Number);
-    const [h2, m2] = t2.split(':').map(Number);
-    return (h1 * 60 + m1) - (h2 * 60 + m2);
+  // Helper kiểm tra 1 ngày cụ thể có nằm trong dải [startDate, endDate] của booking hay không
+  const isDateInRange = (checkDate: string, startDate: string, endDate?: string) => {
+    const end = endDate || startDate;
+    return checkDate >= startDate && checkDate <= end;
   };
 
-  // HÀM KIỂM TRA ĐIỀU KIỆN ĐƯỢC PHÉP NHẬN PHÒNG
-  const checkCanCheckIn = (targetBooking: RoomBooking): { canCheckIn: boolean; reason?: string } => {
-    // 1. Kiểm tra ngày
-    if (!isToday) {
-      return { canCheckIn: false, reason: 'Chỉ được nhận phòng trong đúng ngày diễn ra cuộc họp!' };
-    }
+  // Lọc bookings cho ngày đang chọn
+  const dateBookings = useMemo(() => {
+    return bookings.filter(b => isDateInRange(selectedDate, b.date, b.endDate));
+  }, [bookings, selectedDate]);
 
-    // 2. Quy tắc 5 phút: Không được nhận phòng sớm quá 5 phút so với giờ bắt đầu
-    const diffToStart = getMinutesDiff(targetBooking.startTime, currentTimeStr);
-    if (diffToStart > 5) {
-      return { 
-        canCheckIn: false, 
-        reason: `Chưa đến giờ nhận phòng! Cuộc họp bắt đầu lúc ${targetBooking.startTime}. Bạn chỉ có thể nhận phòng từ lúc trước đó 5 phút (còn ${diffToStart} phút nữa).` 
-      };
-    }
+  const roomBookings = useMemo(() => {
+    return dateBookings.filter(b => b.roomId === selectedRoomId);
+  }, [dateBookings, selectedRoomId]);
 
-    // 3. Quy tắc thứ tự: Tìm tất cả cuộc họp trong cùng phòng trước cuộc họp này
-    const priorBookings = roomBookings
-      .filter(b => b.status !== 'cancelled' && b.id !== targetBooking.id)
-      .filter(b => b.startTime < targetBooking.startTime);
-
-    // Nếu có cuộc họp trước đó mà CHƯA HOÀN THÀNH (chưa trả phòng)
-    const pendingPrior = priorBookings.find(b => b.status !== 'completed');
-    if (pendingPrior) {
-      if (pendingPrior.status === 'checked_in') {
-        return { 
-          canCheckIn: false, 
-          reason: `Phòng hiện đang có cuộc họp "${pendingPrior.title}" (${pendingPrior.startTime} - ${pendingPrior.endTime}) đang sử dụng. Vui lòng đợi người trước trả phòng!` 
-        };
-      } else {
-        return { 
-          canCheckIn: false, 
-          reason: `Cuộc họp trước đó "${pendingPrior.title}" (${pendingPrior.startTime} - ${pendingPrior.endTime}) chưa bắt đầu/chưa xong. Không được nhận phòng nhảy cóc!` 
-        };
-      }
-    }
-
-    // 4. Kiểm tra xem phòng có cuộc họp nào khác đang chiếm không
-    const currentlyUsing = roomBookings.find(b => b.id !== targetBooking.id && b.status === 'checked_in');
-    if (currentlyUsing) {
-      return { 
-        canCheckIn: false, 
-        reason: `Phòng đang được sử dụng bởi "${currentlyUsing.title}". Chỉ khi người này bấm Trả Phòng thì bạn mới được nhận phòng!` 
-      };
-    }
-
-    return { canCheckIn: true };
-  };
-  
-  // HÀM XÁC NHẬN TRẢ PHÒNG (BẢO MẬT: CHỈ NGƯỜI ĐẶT HOẶC ADMIN PASS 8888 MỚI ĐƯỢC TRẢ)
-  const handleCheckOut = async (booking: RoomBooking) => {
-    // 1. Popup bảo mật kín tuyệt đối - KHÔNG gợi ý mã thẻ người đặt
-    const promptInput = prompt(
-      `🔐 BẢO MẬT XÁC NHẬN TRẢ PHÒNG\n\nCuộc họp: "${booking.title}"\n\nĐể xác nhận kết thúc và trả phòng họp, vui lòng nhập MÃ THẺ của người đã đặt phòng hoặc Mật khẩu Quản trị:`
-    );
-
-    if (promptInput === null) return; // Người dùng bấm Hủy/Cancel
-
-    const cleanInput = promptInput.trim().toLowerCase();
-    const isOwner = cleanInput === booking.bookedByCode.trim().toLowerCase();
-    const isAdmin = cleanInput === '8888';
-
-    // 2. Chặn nếu không đúng mã thẻ người đặt và không đúng pass admin
-    if (!isOwner && !isAdmin) {
-      soundFX.playError();
-      alert('❌ Xác thực thất bại! Bạn không phải người đã đặt phòng này và không có quyền trả phòng.');
-      return;
-    }
-
-    // 3. Nếu đúng quyền thì tiến hành hoàn tất và trả phòng
-    const now = new Date();
-    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-    
-    try {
-      const updatedBooking: RoomBooking = {
-        ...booking,
-        status: 'completed',
-        checkedOutAt: timeStr
-      };
-
-      // Cập nhật state giao diện
-      setBookings(prev => prev.map(b => b.id === booking.id ? updatedBooking : b));
-      
-      // Đồng bộ lên Cloud để phòng chuyển sang trạng thái TRỐNG cho các máy khác
-      await saveRoomBookingToCloud(updatedBooking);
-      
-      soundFX.playScanSuccess();
-      alert(`✅ Đã xác nhận trả phòng thành công lúc ${timeStr}! Phòng đã sẵn sàng cho bộ phận tiếp theo.`);
-    } catch (err) {
-      console.error('Lỗi khi trả phòng trên Cloud:', err);
-      alert('Lỗi kết nối khi cập nhật trả phòng.');
-    }
-  };
-
+  // HÀM TẠO ĐẶT PHÒNG (TRẠNG THÁI BAN ĐẦU: PENDING - CHỜ DUYỆT)
   const handleCreateBooking = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -197,30 +128,47 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       setFormError('Vui lòng nhập chủ đề cuộc họp');
       return;
     }
-
+    if (!bookHostName.trim()) {
+      setFormError('Vui lòng nhập người chủ trì / người họp');
+      return;
+    }
     if (!bookEmpCode.trim()) {
       setFormError('Vui lòng nhập hoặc quét mã thẻ người đặt');
       return;
     }
-
+    if (bookStartDate > bookEndDate) {
+      setFormError('Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu');
+      return;
+    }
     if (bookStartTime >= bookEndTime) {
       setFormError('Giờ kết thúc phải lớn hơn giờ bắt đầu');
       return;
     }
 
-    // Kiểm tra trùng giờ
-    const isOverlap = bookings.some(b => {
-      if (b.roomId !== modalRoomId || b.date !== selectedDate || b.status === 'cancelled' || b.status === 'completed') return false;
-      return (
+    // Kiểm tra trùng lịch: Trong bất kỳ ngày nào thuộc dải ngày [bookStartDate -> bookEndDate], cùng phòng họp, trùng giờ
+    const isConflict = bookings.some(b => {
+      if (b.roomId !== modalRoomId || b.status === 'cancelled' || b.status === 'rejected') return false;
+
+      const bStart = b.date;
+      const bEnd = b.endDate || b.date;
+
+      // Kiểm tra 2 dải ngày có giao nhau không
+      const dateOverlap = !(bookEndDate < bStart || bookStartDate > bEnd);
+      if (!dateOverlap) return false;
+
+      // Kiểm tra khung giờ có đụng nhau không
+      const timeOverlap = (
         (bookStartTime >= b.startTime && bookStartTime < b.endTime) ||
         (bookEndTime > b.startTime && bookEndTime <= b.endTime) ||
         (bookStartTime <= b.startTime && bookEndTime >= b.endTime)
       );
+
+      return timeOverlap;
     });
 
-    if (isOverlap) {
+    if (isConflict) {
       soundFX.playError();
-      setFormError('Khung giờ này đã có người đặt trước! Vui lòng chọn khung giờ khác.');
+      setFormError('Khoảng thời gian này phòng đã có người đặt trước! Vui lòng chọn ngày hoặc giờ khác.');
       return;
     }
 
@@ -235,401 +183,504 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       department: bookDept.trim() || 'Khối Sản Xuất',
       phone: bookPhone.trim(),
       title: bookTitle.trim(),
-      hostName: bookHostName.trim() || bookEmpName.trim() || 'Người chủ trì',
-      date: selectedDate,
+      hostName: bookHostName.trim(),
+      date: bookStartDate,
+      endDate: bookEndDate,
       startTime: bookStartTime,
       endTime: bookEndTime,
       participantsCount: Number(bookParticipants),
       equipmentsNeeded: selectedEquipments,
-      status: 'confirmed',
+      status: 'pending', // Chờ duyệt
       createdAt: new Date().toISOString()
     };
 
     soundFX.playScanSuccess();
-    // Giữ nguyên các booking cũ, thêm booking mới
     setBookings(prev => [newBooking, ...prev]);
     saveRoomBookingToCloud(newBooking).catch(console.error);
 
     setShowBookingModal(false);
     setBookTitle('');
+    setBookHostName('');
     setBookEmpCode('');
     setBookEmpName('');
     setBookDept('');
+    alert('✅ Đã gửi yêu cầu đặt phòng thành công! Cuộc họp đang ở trạng thái CHỜ XÁC NHẬN từ chị Mỹ Duyên hoặc anh Yai.');
   };
 
+  // HÀM PHÊ DUYỆT ĐẶT PHÒNG (Duyệt bởi duypt hoặc yaitp)
+  const handleApproveSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setApproverError('');
+
+    const matchedApprover = APPROVERS.find(
+      u => u.username.toLowerCase() === approverUser.trim().toLowerCase() && u.pass === approverPass.trim()
+    );
+
+    if (!matchedApprover) {
+      soundFX.playError();
+      setApproverError('Sai tên đăng nhập hoặc mật khẩu người duyệt!');
+      return;
+    }
+
+    if (!approvingBooking) return;
+
+    const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + todayStr;
+
+    // Cập nhật trạng thái booking thành confirmed
+    const updatedBooking: RoomBooking = {
+      ...approvingBooking,
+      status: 'confirmed',
+      approvedBy: `${matchedApprover.name} (${matchedApprover.username})`,
+      approvedAt: nowStr
+    };
+
+    setBookings(prev => prev.map(b => b.id === approvingBooking.id ? updatedBooking : b));
+    await saveRoomBookingToCloud(updatedBooking);
+
+    // TỰ ĐỘNG TẠO BUỔI HỌP BÊN TAB ĐIỂM DANH ĐÀO TẠO & HỌP
+    const autoSession: TrainingSession = {
+      id: `session_auto_${updatedBooking.id}`,
+      title: updatedBooking.title,
+      instructor: updatedBooking.hostName || updatedBooking.bookedByName,
+      location: updatedBooking.roomName,
+      date: updatedBooking.date,
+      startTime: updatedBooking.startTime,
+      endTime: updatedBooking.endTime,
+      type: 'meeting',
+      createdAt: new Date().toISOString(),
+      status: 'active'
+    };
+
+    if (setSessions) {
+      setSessions(prev => {
+        if (prev.some(s => s.id === autoSession.id || (s.title === autoSession.title && s.date === autoSession.date))) {
+          return prev;
+        }
+        return [autoSession, ...prev];
+      });
+    }
+    await saveTrainingSessionToCloud(autoSession);
+
+    soundFX.playScanSuccess();
+    setApprovingBooking(null);
+    setApproverUser('');
+    setApproverPass('');
+    alert(`✅ ĐÃ XÁC NHẬN ĐẶT PHÒNG THÀNH CÔNG!\n\nNgười duyệt: ${matchedApprover.name}\nĐã tự động tạo form ký tên buổi họp "${updatedBooking.title}" bên tab Điểm Danh.`);
+  };
+
+  // Hủy/Xóa đặt phòng
   const handleCancelBooking = async (booking: RoomBooking) => {
     const promptInput = prompt(
-      `🔐 BẢO MẬT HỦY ĐẶT PHÒNG\n\nCuộc họp: "${booking.title}"\n\nĐể hủy lịch này, vui lòng nhập MÃ THẺ của người đã đặt phòng hoặc Mật khẩu Quản trị:`
+      `🔐 BẢO MẬT HỦY ĐẶT PHÒNG\n\nCuộc họp: "${booking.title}"\n\nĐể hủy lịch này, vui lòng nhập MÃ THẺ của người đặt hoặc Mật khẩu Quản trị:`
     );
 
     if (promptInput === null) return;
 
     const cleanInput = promptInput.trim().toLowerCase();
     const isOwner = cleanInput === booking.bookedByCode.trim().toLowerCase();
-    const isAdmin = cleanInput === '8888';
+    const isAdmin = cleanInput === '8888' || cleanInput === 'duypt@356' || cleanInput === 'yaitp#632';
 
     if (!isOwner && !isAdmin) {
       soundFX.playError();
-      alert('❌ Xác thực thất bại! Bạn không phải người đã đặt phòng này và không có quyền hủy.');
+      alert('❌ Xác thực thất bại! Bạn không có quyền hủy lịch này.');
       return;
     }
 
     if (confirm(`Xác nhận hủy cuộc họp "${booking.title}"?`)) {
-      try {
-        setBookings(prev => prev.filter(b => b.id !== booking.id));
-        await deleteRoomBookingInCloud(booking.id);
-        soundFX.playScanSuccess();
-        alert('✅ Đã hủy cuộc họp thành công!');
-      } catch (err) {
-        console.error('Lỗi khi xóa phòng trên Cloud:', err);
-      }
+      setBookings(prev => prev.filter(b => b.id !== booking.id));
+      await deleteRoomBookingInCloud(booking.id);
+      soundFX.playScanSuccess();
     }
   };
 
-  const handleExportRoomBookings = () => {
-    if (bookings.length === 0) {
-      alert('Chưa có dữ liệu lịch đặt phòng để xuất file!');
-      return;
+  // LOGIC LỊCH THÁNG (Calendar Grid)
+  const monthNames = [
+    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+    'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
+  ];
+
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay(); // 0 là CN, 1 là T2...
+  // Chuyển về chuẩn Thứ 2 = 0, CN = 6
+  const startOffset = (firstDayOfWeek + 6) % 7;
+
+  const handlePrevMonth = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear(y => y - 1);
+    } else {
+      setCurrentMonth(m => m - 1);
     }
-  
-    const pin = prompt('🔐 BẢO MẬT XUẤT LỊCH PHÒNG HỌP\n\nFile Excel chứa thông tin người đặt và mã thẻ đầy đủ.\nVui lòng nhập Mật khẩu Quản trị để tải:');
-    if (pin === null) return;
-  
-    if (pin.trim() !== '8888') {
-      soundFX.playError();
-      alert('❌ Mật khẩu không đúng! Bạn không có quyền tải file lịch phòng họp.');
-      return;
-    }
-  
-    soundFX.playScanSuccess();
-    exportRoomBookingsToExcel(bookings);
   };
+
+  const handleNextMonth = () => {
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear(y => y + 1);
+    } else {
+      setCurrentMonth(m => m + 1);
+    }
+  };
+
   return (
     <div className="space-y-5">
-      {/* Title & Banner */}
+      {/* Top Banner & Action */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Đặt Phòng Họp Thông Minh Bằng Thẻ
+              Quy Trình Duyệt Phòng Họp Nhà Máy
             </span>
             <h2 className="text-xl font-extrabold text-slate-900 mt-1">
               Phòng Họp Vịnh Hạ Long & Bà Nà Hill
             </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Phê duyệt bởi: <strong>Chị Phan Thị Mỹ Duyên</strong> hoặc <strong>Anh Thaisit Phawang (Yai)</strong>
+            </p>
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Chuyển đổi xem Lịch Tháng / Lịch Ngày */}
+            <div className="flex p-0.5 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold shadow-2xs">
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                  viewMode === 'calendar' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <CalendarIcon className="w-3.5 h-3.5" />
+                <span>Lịch Tháng</span>
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                  viewMode === 'list' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>Lịch Theo Ngày</span>
+              </button>
+            </div>
+
             <button
               onClick={() => {
                 setModalRoomId(selectedRoomId);
                 setShowBookingModal(true);
               }}
-              className="flex-1 sm:flex-none px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition-all"
             >
               <Plus className="w-4 h-4" />
-              Đặt Phòng Mới
+              <span>Đặt Phòng Mới</span>
             </button>
 
             <button
-              onClick={handleExportRoomBookings}
-              className="flex-1 sm:flex-none px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+              onClick={() => exportRoomBookingsToExcel(bookings)}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
             >
               <FileSpreadsheet className="w-4 h-4" />
-              Xuất Excel Lịch Họp
+              <span className="hidden sm:inline">Xuất Excel</span>
             </button>
           </div>
         </div>
 
-        {/* Date Selector */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <CalendarDays className="w-4 h-4 text-blue-600 shrink-0" />
-            <span className="text-xs text-slate-700 font-bold shrink-0">Xem theo ngày:</span>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-bold focus:outline-none focus:border-blue-500 shadow-sm"
-            />
+        {/* Chú thích màu trạng thái (Legend) */}
+        <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="font-bold text-slate-700">Chú thích lịch:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-xs"></span>
+              <span className="font-semibold text-emerald-800">Đã Xác Nhận (Đã Duyệt)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-amber-400 shadow-xs"></span>
+              <span className="font-semibold text-amber-800">Chờ Xác Nhận (Chưa Duyệt)</span>
+            </div>
           </div>
 
-          <div className="text-xs text-slate-500 font-medium">
-            Giờ hiện tại: <strong className="text-blue-700 font-mono text-sm">{currentTimeStr}</strong>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500">Xem phòng:</span>
+            <select
+              value={selectedRoomId}
+              onChange={(e) => setSelectedRoomId(e.target.value)}
+              className="px-2.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-blue-900 focus:outline-none"
+            >
+              {PRESET_ROOMS.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
 
-      {/* 2 Big Meeting Rooms Spotlight Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {PRESET_ROOMS.map(room => {
-          const isSelected = selectedRoomId === room.id;
-          const roomBookingsToday = dateBookings.filter(b => b.roomId === room.id && b.status !== 'cancelled');
+      {/* ================= GIAO DIỆN 1: LỊCH XEM THEO THÁNG (MONTH CALENDAR) ================= */}
+      {viewMode === 'calendar' && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+          {/* Header điều hướng Tháng */}
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+            <div className="flex items-center gap-3">
+              <h3 className="font-black text-base sm:text-lg text-slate-900">
+                {monthNames[currentMonth]} / {currentYear}
+              </h3>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200">
+                {currentRoom.name}
+              </span>
+            </div>
 
-          // TÌM CUỘC HỌP ĐANG HOẠT ĐỘNG HOẶC QUÁ GIỜ
-          let activeMeeting: RoomBooking | undefined;
-          let isOverdue = false;
-          let overdueMinutes = 0;
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handlePrevMonth}
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 transition-colors shadow-2xs"
+                title="Tháng trước"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => {
+                  setCurrentYear(new Date().getFullYear());
+                  setCurrentMonth(new Date().getMonth());
+                }}
+                className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold hover:bg-slate-50"
+              >
+                Hôm nay
+              </button>
+              <button
+                onClick={handleNextMonth}
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 transition-colors shadow-2xs"
+                title="Tháng sau"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
 
-          if (isToday) {
-            // ƯU TIÊN 1: Cuộc họp đang CHECK-IN nhận phòng thực tế
-            activeMeeting = roomBookingsToday.find(b => b.status === 'checked_in');
+          {/* Lưới Lịch Tháng (Thứ 2 -> Chủ Nhật) */}
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
+            {['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'].map((dayName, idx) => (
+              <div key={dayName} className="text-center font-bold text-xs py-2 text-slate-500 bg-slate-50 rounded-lg">
+                {dayName}
+              </div>
+            ))}
 
-            // NẾU KHÔNG CÓ AI CHECK-IN: Tìm cuộc họp đang trong khung giờ
-            if (!activeMeeting) {
-              activeMeeting = roomBookingsToday.find(b => {
-                if (b.status === 'completed' || b.status === 'cancelled') return false;
-                return currentTimeStr >= b.startTime && currentTimeStr <= b.endTime;
-              });
-            }
+            {/* Các ô trống trước ngày 1 */}
+            {Array.from({ length: startOffset }).map((_, i) => (
+              <div key={'empty-' + i} className="min-h-[90px] sm:min-h-[115px] p-1 bg-slate-50/40 rounded-xl border border-dashed border-slate-200/60" />
+            ))}
 
-            // Kiểm tra quá giờ
-            if (activeMeeting && activeMeeting.status === 'checked_in' && currentTimeStr > activeMeeting.endTime) {
-              isOverdue = true;
-              overdueMinutes = getMinutesDiff(currentTimeStr, activeMeeting.endTime);
-            }
-          }
+            {/* Các ngày trong tháng */}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const dayNum = i + 1;
+              const dateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+              const isTodayCell = dateString === todayStr;
 
-          const isOccupied = !!activeMeeting;
+              // Lấy các cuộc họp trong ngày này của phòng đang chọn
+              const cellBookings = bookings.filter(b => 
+                b.roomId === selectedRoomId && 
+                b.status !== 'cancelled' && 
+                b.status !== 'rejected' &&
+                isDateInRange(dateString, b.date, b.endDate)
+              );
 
-          return (
-            <div
-              key={room.id}
-              onClick={() => setSelectedRoomId(room.id)}
-              className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-4 bg-white shadow-sm ${
-                isSelected 
-                  ? 'border-blue-600 ring-2 ring-blue-500/20' 
-                  : 'border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  {/* Trạng thái chi tiết: Trống / Đang dùng / Quá giờ */}
-                  {isOverdue ? (
-                    <div className="px-2.5 py-1 rounded-full text-xs font-black flex items-center gap-1.5 bg-rose-600 text-white animate-pulse shadow-sm">
-                      <AlertTriangle className="w-3.5 h-3.5 text-yellow-300" />
-                      <span>QUÁ GIỜ {overdueMinutes} PHÚT ({activeMeeting?.endTime})</span>
-                    </div>
-                  ) : isOccupied ? (
-                    <div className="px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 bg-rose-100 text-rose-800 border border-rose-300">
-                      <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
-                      <span>ĐANG SỬ DỤNG ({activeMeeting?.startTime} - {activeMeeting?.endTime})</span>
-                    </div>
-                  ) : (
-                    <div className="px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 bg-emerald-100 text-emerald-800 border border-emerald-300">
-                      <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                      <span>HIỆN ĐANG TRỐNG</span>
+              return (
+                <div
+                  key={dateString}
+                  onClick={() => {
+                    setSelectedDate(dateString);
+                    setViewMode('list'); // Bấm vào ngày để xem chi tiết
+                  }}
+                  className={`min-h-[95px] sm:min-h-[120px] p-1.5 sm:p-2 rounded-xl border transition-all flex flex-col justify-between cursor-pointer ${
+                    isTodayCell
+                      ? 'bg-blue-50/50 border-blue-400 ring-2 ring-blue-500/20'
+                      : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-xs'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-black w-6 h-6 rounded-full flex items-center justify-center ${
+                      isTodayCell ? 'bg-blue-600 text-white' : 'text-slate-800'
+                    }`}>
+                      {dayNum}
+                    </span>
+
+                    {cellBookings.length > 0 && (
+                      <span className="text-[10px] font-mono font-bold text-slate-400">
+                        {cellBookings.length} cuộc
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Danh sách các cuộc họp mini trong ô ngày */}
+                  <div className="space-y-1 my-1 overflow-y-auto max-h-[70px] sm:max-h-[85px]">
+                    {cellBookings.slice(0, 3).map(b => {
+                      const isConfirmed = b.status === 'confirmed';
+                      const isMultiDay = b.endDate && b.endDate !== b.date;
+
+                      return (
+                        <div
+                          key={b.id + '-' + dateString}
+                          className={`p-1 rounded text-[10px] leading-tight font-semibold border truncate ${
+                            isConfirmed
+                              ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                              : 'bg-amber-50 text-amber-900 border-amber-200 animate-pulse'
+                          }`}
+                          title={`[${b.startTime} - ${b.endTime}] ${b.title}\nNgười đặt: ${b.bookedByName}\nChủ trì: ${b.hostName || '-'}\nTrạng thái: ${isConfirmed ? 'Đã duyệt' : 'Chờ duyệt'}`}
+                        >
+                          <div className="flex items-center gap-1 font-mono text-[9px] font-bold">
+                            <span>{b.startTime}-{b.endTime}</span>
+                            {isMultiDay && <span className="text-purple-600 font-sans">📅 Nhiều ngày</span>}
+                          </div>
+                          <div className="truncate font-bold">{b.title}</div>
+                        </div>
+                      );
+                    })}
+
+                    {cellBookings.length > 3 && (
+                      <div className="text-[9px] text-slate-500 font-bold text-center">
+                        + {cellBookings.length - 3} cuộc khác
+                      </div>
+                    )}
+                  </div>
+
+                  {cellBookings.length === 0 && (
+                    <div className="text-[10px] text-slate-300 text-center font-medium py-1">
+                      Trống
                     </div>
                   )}
-
-                  <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
-                    <Users className="w-3.5 h-3.5 text-blue-600" /> Sức chứa: <strong className="text-slate-800">{room.capacity} người</strong>
-                  </span>
                 </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-                <div>
-                  <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                    {room.name}
-                  </h3>
-                  <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                    <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                    {room.location}
-                  </p>
-                </div>
-
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  {room.description}
+      {/* ================= GIAO DIỆN 2: CHI TIẾT THEO NGÀY (CÓ NÚT DUYỆT BỞI MỸ DUYÊN / YAI) ================= */}
+      {viewMode === 'list' && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-3">
+              <CalendarDays className="w-5 h-5 text-blue-600" />
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900">
+                  Lịch Trình Chi Tiết: {currentRoom.name}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Ngày đang chọn: <strong className="text-blue-700">{selectedDate}</strong>
                 </p>
-
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {room.equipment.map(eq => (
-                    <span key={eq} className="text-[10px] px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-medium">
-                      {eq}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Action buttons on card */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">
-                  {roomBookingsToday.filter(b => b.status !== 'cancelled' && b.status !== 'completed').length} cuộc họp chưa xong
-                </span>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setModalRoomId(room.id);
-                    setShowBookingModal(true);
-                  }}
-                  className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Đặt Phòng Này</span>
-                </button>
               </div>
             </div>
-          );
-        })}
-      </div>
 
-      {/* Hourly Timeline Schedule */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-          <div>
-            <h3 className="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-blue-600" />
-              Lịch Trình Trong Ngày: {currentRoom.name}
-            </h3>
-            <p className="text-xs text-slate-500">
-              Ngày: <span className="text-blue-700 font-bold">{selectedDate}</span>
-            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800"
+              />
+              <button
+                onClick={() => setViewMode('calendar')}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold hover:bg-slate-50"
+              >
+                Về Lịch Tháng
+              </button>
+            </div>
           </div>
 
-          <span className="text-xs text-slate-500 font-medium">
-            {roomBookings.filter(b => b.status !== 'cancelled' && b.status !== 'completed').length} cuộc họp cần diễn ra
-          </span>
-        </div>
+          {roomBookings.length === 0 ? (
+            <div className="p-8 sm:p-12 text-center space-y-2">
+              <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
+              <p className="text-base font-bold text-slate-800">Ngày này chưa có cuộc họp nào!</p>
+              <p className="text-xs text-slate-500">Bạn có thể bấm &ldquo;Đặt Phòng Mới&rdquo; để đăng ký mượn phòng.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {roomBookings
+                .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                .map(booking => {
+                  const isConfirmed = booking.status === 'confirmed';
+                  const isPending = booking.status === 'pending';
+                  const isMultiDay = booking.endDate && booking.endDate !== booking.date;
 
-        {/* Schedule List */}
-        {roomBookings.filter(b => b.status !== 'cancelled').length === 0 ? (
-          <div className="p-8 sm:p-12 text-center space-y-2">
-            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
-            <p className="text-base font-bold text-slate-800">Phòng họp đang trống cả ngày!</p>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Chưa có ai đặt phòng {currentRoom.name} trong ngày {selectedDate}.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {roomBookings
-              .filter(b => b.status !== 'cancelled')
-              .sort((a, b) => a.startTime.localeCompare(b.startTime))
-              .map(booking => {
-                const isCheckedIn = booking.status === 'checked_in';
-                const isCompleted = booking.status === 'completed';
-                
-                // Kiểm tra quá giờ kết thúc
-                const isOverdue = isToday && isCheckedIn && currentTimeStr > booking.endTime;
-                const overdueMins = isOverdue ? getMinutesDiff(currentTimeStr, booking.endTime) : 0;
+                  return (
+                    <div
+                      key={booking.id}
+                      className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-3 ${
+                        isConfirmed
+                          ? 'bg-emerald-50/70 border-emerald-300'
+                          : 'bg-amber-50/80 border-amber-300'
+                      }`}
+                    >
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded bg-white text-blue-700 border border-slate-300 shadow-2xs">
+                            {booking.startTime} - {booking.endTime}
+                          </span>
 
-                // Kiểm tra có đang trong giờ họp không
-                const isCurrentSlot = isToday && currentTimeStr >= booking.startTime && currentTimeStr <= booking.endTime;
+                          {isMultiDay && (
+                            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-300">
+                              Từ {booking.date} đến {booking.endDate}
+                            </span>
+                          )}
 
-                return (
-                  <div
-                    key={booking.id}
-                    className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-3 ${
-                      isOverdue
-                        ? 'bg-rose-50 border-rose-300 ring-2 ring-rose-500/20'
-                        : isCompleted
-                        ? 'bg-slate-50/60 border-slate-200 opacity-75'
-                        : isCheckedIn
-                        ? 'bg-emerald-50/80 border-emerald-300'
-                        : isCurrentSlot
-                        ? 'bg-amber-50 border-amber-300'
-                        : 'bg-slate-50 border-slate-200'
-                    }`}
-                  >
-                    <div className="space-y-1.5 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded bg-white text-blue-700 border border-slate-300 shadow-sm">
-                          {booking.startTime} - {booking.endTime}
-                        </span>
+                          {isConfirmed ? (
+                            <span className="text-[11px] px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              ĐÃ XÁC NHẬN (Bởi {booking.approvedBy || 'Quản trị viên'})
+                            </span>
+                          ) : (
+                            <span className="text-[11px] px-2.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-extrabold flex items-center gap-1 animate-pulse">
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                              CHỜ XÁC NHẬN (Chưa duyệt)
+                            </span>
+                          )}
+                        </div>
 
-                        {isOverdue && (
-                          <span className="text-[11px] px-2.5 py-0.5 rounded bg-rose-600 text-white font-extrabold uppercase animate-pulse flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3 text-yellow-300" /> QUÁ GIỜ {overdueMins} PHÚT
-                          </span>
-                        )}
+                        <h4 className="font-extrabold text-slate-900 text-sm sm:text-base">
+                          {booking.title}
+                        </h4>
 
-                        {isCompleted ? (
-                          <span className="text-[11px] px-2.5 py-0.5 rounded bg-slate-200 text-slate-700 font-bold flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" /> Đã trả phòng lúc {booking.checkedOutAt}
-                          </span>
-                        ) : isCheckedIn ? (
-                          <span className="text-[11px] px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Đang sử dụng (Nhận lúc {booking.checkedInAt})
-                          </span>
-                        ) : isCurrentSlot ? (
-                          <span className="text-[11px] px-2.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-extrabold">
-                            ĐANG ĐẾN GIỜ - Chưa check-in nhận phòng
-                          </span>
-                        ) : (
-                          <span className="text-[11px] px-2.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-300 font-medium">
-                            Đặt trước (Chưa đến giờ)
-                          </span>
-                        )}
+                        <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
+                          <span><strong>Người họp / Chủ trì:</strong> <span className="text-blue-900 font-bold">{booking.hostName || booking.bookedByName}</span></span>
+                          <span><strong>Người đặt:</strong> {booking.bookedByName} ({maskEmployeeCode(booking.bookedByCode)})</span>
+                          <span><strong>Bộ phận:</strong> {booking.department}</span>
+                          <span><strong>Số người:</strong> {booking.participantsCount}</span>
+                        </div>
                       </div>
 
-                      <h4 className="font-extrabold text-slate-900 text-sm sm:text-base">
-                        {booking.title}
-                      </h4>
-
-                      <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
-                        <span><strong>Người đặt:</strong> {booking.bookedByName} (<span className="font-mono text-blue-700 font-bold">{maskEmployeeCode(booking.bookedByCode)}</span>)</span>
-                        <span><strong>Bộ phận:</strong> {booking.department}</span>
-                        <span><strong>Tham dự:</strong> {booking.participantsCount} người</span>
-                      </div>
-                    </div>
-
-                    {/* Booking actions */}
-                    <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end border-t md:border-t-0 pt-2 md:pt-0 border-slate-200">
-                      {/* NÚT QUÉT THẺ NHẬN PHÒNG (KHI CHƯA CHECK-IN) */}
-                      {!isCheckedIn && !isCompleted && (() => {
-                        const checkResult = checkCanCheckIn(booking);
-                        
-                        return (
+                      {/* Nút thao tác: Duyệt & Hủy */}
+                      <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end border-t md:border-t-0 pt-2 md:pt-0 border-slate-200">
+                        {/* NÚT DUYỆT (CHỈ HIỆN KHI CHƯA DUYỆT) */}
+                        {isPending && (
                           <button
                             onClick={() => {
-                              if (!checkResult.canCheckIn) {
-                                soundFX.playError();
-                                alert(`⚠️ KHÔNG THỂ NHẬN PHÒNG LÚC NÀY:\n\n${checkResult.reason}`);
-                                return;
-                              }
-                              onOpenScannerForRoomCheckIn(booking.id);
+                              setApprovingBooking(booking);
+                              setApproverUser('');
+                              setApproverPass('');
+                              setApproverError('');
                             }}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm ${
-                              checkResult.canCheckIn 
-                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95' 
-                                : 'bg-slate-200 text-slate-500 hover:bg-slate-300 border border-slate-300'
-                            }`}
-                            title={checkResult.canCheckIn ? 'Bấm để quét thẻ nhận phòng' : checkResult.reason}
+                            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
                           >
-                            <ScanLine className="w-3.5 h-3.5" />
-                            <span>{checkResult.canCheckIn ? 'Quét Thẻ Nhận Phòng' : 'Chưa Được Nhận Phòng'}</span>
+                            <ShieldCheck className="w-4 h-4" />
+                            <span>Xác Nhận Đặt Phòng</span>
                           </button>
-                        );
-                      })()}
+                        )}
 
-                      {/* NÚT XÁC NHẬN TRẢ PHÒNG (KHI ĐANG SỬ DỤNG) */}
-                      {isCheckedIn && (
                         <button
-                          onClick={() => handleCheckOut(booking)}
-                          className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-colors shadow-sm"
+                          onClick={() => handleCancelBooking(booking)}
+                          className="p-2 rounded-xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors shadow-2xs"
+                          title="Hủy / Xóa lịch này (Cần mã thẻ người đặt hoặc pass 8888)"
                         >
-                          <LogOut className="w-3.5 h-3.5" />
-                          Xác Nhận Trả Phòng
+                          <Trash2 className="w-4 h-4" />
                         </button>
-                      )}
-
-                      <button
-                        onClick={() => handleCancelBooking(booking)}
-                        className="p-2 rounded-xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors shadow-sm"
-                        title="Hủy đặt phòng"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-      </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Manual Booking Modal */}
+      {/* ================= MODAL 1: ĐẶT PHÒNG HỌP (CÓ TỪ NGÀY -> ĐẾN NGÀY) ================= */}
       {showBookingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto text-slate-900">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-extrabold text-base text-slate-900">
@@ -675,11 +726,12 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   required
                   value={bookTitle}
                   onChange={(e) => setBookTitle(e.target.value)}
-                  placeholder="VD: Họp KPI, SCR,..."
+                  placeholder="VD: Họp KPI, SCR, Kế hoạch tuần..."
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
                 />
               </div>
 
+              {/* Ô NGƯỜI HỌP / CHỦ TRÌ (BỔ SUNG THEO YÊU CẦU) */}
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
                   Người Họp / Chủ Trì Cuộc Họp <span className="text-rose-500">*</span>
@@ -701,9 +753,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   </label>
                   <button
                     type="button"
-                    onClick={() => {
-                      onOpenScannerForRoomBooking(modalRoomId, selectedDate);
-                    }}
+                    onClick={() => onOpenScannerForRoomBooking(modalRoomId, bookStartDate)}
                     className="text-[11px] text-blue-600 hover:text-blue-800 flex items-center gap-1 font-bold"
                   >
                     <ScanLine className="w-3.5 h-3.5" />
@@ -743,20 +793,39 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              {/* CHỌN TỪ NGÀY -> ĐẾN NGÀY (HỖ TRỢ MƯỢN NHIỀU NGÀY) */}
+              <div className="grid grid-cols-2 gap-2 p-2.5 bg-blue-50/60 border border-blue-200 rounded-xl">
                 <div>
-                  <label className="block text-slate-700 mb-1 font-bold">Ngày Họp</label>
+                  <label className="block text-blue-900 mb-1 font-bold">Từ Ngày</label>
                   <input
                     type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full px-2 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium text-xs"
+                    required
+                    value={bookStartDate}
+                    onChange={(e) => {
+                      setBookStartDate(e.target.value);
+                      if (e.target.value > bookEndDate) setBookEndDate(e.target.value);
+                    }}
+                    className="w-full px-2 py-2 bg-white border border-blue-200 rounded-lg text-slate-900 text-xs font-bold"
                   />
                 </div>
+                <div>
+                  <label className="block text-blue-900 mb-1 font-bold">Đến Ngày</label>
+                  <input
+                    type="date"
+                    required
+                    value={bookEndDate}
+                    onChange={(e) => setBookEndDate(e.target.value)}
+                    className="w-full px-2 py-2 bg-white border border-blue-200 rounded-lg text-slate-900 text-xs font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-slate-700 mb-1 font-bold">Từ Giờ</label>
                   <input
                     type="time"
+                    required
                     value={bookStartTime}
                     onChange={(e) => setBookStartTime(e.target.value)}
                     className="w-full px-2 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium text-xs"
@@ -766,6 +835,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   <label className="block text-slate-700 mb-1 font-bold">Đến Giờ</label>
                   <input
                     type="time"
+                    required
                     value={bookEndTime}
                     onChange={(e) => setBookEndTime(e.target.value)}
                     className="w-full px-2 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium text-xs"
@@ -797,7 +867,90 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   type="submit"
                   className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors shadow-sm"
                 >
-                  Xác Nhận Đặt Phòng
+                  Gửi Yêu Cầu Đặt Phòng
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL 2: XÁC NHẬN DUYỆT BỞI MỸ DUYÊN / YAI ================= */}
+      {approvingBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4 text-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                <h3 className="font-extrabold text-sm text-slate-900">
+                  Xác Nhận Phê Duyệt Phòng Họp
+                </h3>
+              </div>
+              <button
+                onClick={() => setApprovingBooking(null)}
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
+              <p><strong>Cuộc họp:</strong> {approvingBooking.title}</p>
+              <p><strong>Phòng:</strong> {approvingBooking.roomName}</p>
+              <p><strong>Thời gian:</strong> {approvingBooking.startTime} - {approvingBooking.endTime}</p>
+              <p><strong>Ngày:</strong> {approvingBooking.date}{approvingBooking.endDate && approvingBooking.endDate !== approvingBooking.date ? ` đến ${approvingBooking.endDate}` : ''}</p>
+              <p><strong>Người chủ trì:</strong> {approvingBooking.hostName || approvingBooking.bookedByName}</p>
+            </div>
+
+            {approverError && (
+              <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold">
+                ❌ {approverError}
+              </div>
+            )}
+
+            <form onSubmit={handleApproveSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-700 mb-1 font-bold">
+                  Tài khoản người duyệt:
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={approverUser}
+                  onChange={(e) => setApproverUser(e.target.value)}
+                  placeholder="duypt hoặc yaitp..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 mb-1 font-bold">
+                  Mật khẩu:
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={approverPass}
+                  onChange={(e) => setApproverPass(e.target.value)}
+                  placeholder="Nhập mật khẩu người duyệt..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setApprovingBooking(null)}
+                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
+                >
+                  Đóng
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black transition-all shadow-sm"
+                >
+                  Xác Nhận & Tạo Form
                 </button>
               </div>
             </form>
