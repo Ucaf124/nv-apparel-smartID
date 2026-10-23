@@ -230,11 +230,15 @@ export default function App() {
     });
 
     const unsubSessions = subscribeToTrainingSessions((cloudSessions) => {
-      if (cloudSessions) {
-        setSessions(cloudSessions);
-        if (cloudSessions.length > 0 && !activeSessionId) {
+      setSessions(cloudSessions || []);
+      if (cloudSessions && cloudSessions.length > 0) {
+        if (!activeSessionId || !cloudSessions.some(s => s.id === activeSessionId)) {
           setActiveSessionId(cloudSessions[0].id);
         }
+        localStorage.setItem('smartfactory_prod_sessions', JSON.stringify(cloudSessions));
+      } else {
+        setActiveSessionId('');
+        localStorage.removeItem('smartfactory_prod_sessions');
       }
     });
 
@@ -251,8 +255,11 @@ export default function App() {
     });
 
     const unsubBookings = subscribeToRoomBookings((cloudBookings) => {
+      setBookings(cloudBookings || []);
       if (cloudBookings && cloudBookings.length > 0) {
-        setBookings(cloudBookings);
+        localStorage.setItem('smartfactory_prod_bookings', JSON.stringify(cloudBookings));
+      } else {
+        localStorage.removeItem('smartfactory_prod_bookings');
       }
     });
 
