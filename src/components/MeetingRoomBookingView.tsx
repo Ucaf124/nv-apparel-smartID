@@ -128,6 +128,24 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       setFormError('Vui lòng nhập chủ đề cuộc họp');
       return;
     }
+    // 1. CHẶN ĐẶT NGÀY TRONG QUÁ KHỨ
+    if (bookStartDate < todayStr) {
+      soundFX.playError();
+      setFormError('Không thể đặt phòng cho ngày trong quá khứ! Vui lòng chọn từ hôm nay trở đi.');
+      return;
+    }
+
+    // 2. NẾU ĐẶT TRONG NGÀY HÔM NAY -> CHẶN ĐẶT GIỜ ĐÃ TRÔI QUA TRONG QUÁ KHỨ
+    if (bookStartDate === todayStr) {
+      const d = new Date();
+      const nowHM = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+      if (bookStartTime < nowHM) {
+        soundFX.playError();
+        setFormError(`Giờ bắt đầu (${bookStartTime}) đã trôi qua so với giờ hiện tại (${nowHM})!`);
+        return;
+      }
+    }
+    
     if (!bookHostName.trim()) {
       setFormError('Vui lòng nhập người chủ trì / người họp');
       return;
@@ -481,8 +499,11 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               const dayNum = i + 1;
               const dateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
               const isTodayCell = dateString === todayStr;
+              
+              // KIỂM TRA NGÀY TRONG QUÁ KHỨ
+              const isPastDate = dateString < todayStr;
 
-              // Lấy các cuộc họp trong ngày này của phòng đang chọn
+              // Lấy các cuộc họp trong ngày này
               const cellBookings = bookings.filter(b => 
                 b.roomId === selectedRoomId && 
                 b.status !== 'cancelled' && 
@@ -494,18 +515,27 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 <div
                   key={dateString}
                   onClick={() => {
+                    // Nếu ngày đã qua thì KHÔNG cho click mở đặt phòng nữa
+                    if (isPastDate) return;
                     setSelectedDate(dateString);
-                    setViewMode('list'); // Bấm vào ngày để xem chi tiết
+                    setViewMode('list');
                   }}
-                  className={`min-h-[95px] sm:min-h-[120px] p-1.5 sm:p-2 rounded-xl border transition-all flex flex-col justify-between cursor-pointer ${
-                    isTodayCell
-                      ? 'bg-blue-50/50 border-blue-400 ring-2 ring-blue-500/20'
-                      : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-xs'
+                  className={`min-h-[95px] sm:min-h-[120px] p-1.5 sm:p-2 rounded-xl border transition-all flex flex-col justify-between ${
+                    isPastDate
+                      ? 'bg-slate-100/70 border-slate-200 opacity-45 cursor-not-allowed select-none' // Làm xám mờ & khóa chuột
+                      : isTodayCell
+                      ? 'bg-blue-50/50 border-blue-400 ring-2 ring-blue-500/20 cursor-pointer hover:shadow-xs'
+                      : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-xs cursor-pointer'
                   }`}
+                  title={isPastDate ? `Ngày ${dateString} đã qua - Không thể đặt phòng` : `Bấm để xem lịch ngày ${dateString}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className={`text-xs font-black w-6 h-6 rounded-full flex items-center justify-center ${
-                      isTodayCell ? 'bg-blue-600 text-white' : 'text-slate-800'
+                      isPastDate
+                        ? 'text-slate-400 bg-slate-200/50 line-through' // Gạch ngang số ngày quá khứ
+                        : isTodayCell 
+                        ? 'bg-blue-600 text-white' 
+                        : 'text-slate-800'
                     }`}>
                       {dayNum}
                     </span>
@@ -527,11 +557,12 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                         <div
                           key={b.id + '-' + dateString}
                           className={`p-1 rounded text-[10px] leading-tight font-semibold border truncate ${
-                            isConfirmed
+                            isPastDate
+                              ? 'bg-slate-200/80 text-slate-600 border-slate-300'
+                              : isConfirmed
                               ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
                               : 'bg-amber-50 text-amber-900 border-amber-200 animate-pulse'
                           }`}
-                          title={`[${b.startTime} - ${b.endTime}] ${b.title}\nNgười đặt: ${b.bookedByName}\nChủ trì: ${b.hostName || '-'}\nTrạng thái: ${isConfirmed ? 'Đã duyệt' : 'Chờ duyệt'}`}
                         >
                           <div className="flex items-center gap-1 font-mono text-[9px] font-bold">
                             <span>{b.startTime}-{b.endTime}</span>
@@ -541,17 +572,11 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                         </div>
                       );
                     })}
-
-                    {cellBookings.length > 3 && (
-                      <div className="text-[9px] text-slate-500 font-bold text-center">
-                        + {cellBookings.length - 3} cuộc khác
-                      </div>
-                    )}
                   </div>
 
                   {cellBookings.length === 0 && (
                     <div className="text-[10px] text-slate-300 text-center font-medium py-1">
-                      Trống
+                      {isPastDate ? 'Đã qua' : 'Trống'}
                     </div>
                   )}
                 </div>
@@ -810,6 +835,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   <input
                     type="date"
                     required
+                    min={todayStr}  {/* <-- THÊM min={todayStr} VÀO ĐÂY */}
                     value={bookStartDate}
                     onChange={(e) => {
                       setBookStartDate(e.target.value);
@@ -823,6 +849,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   <input
                     type="date"
                     required
+                    min={bookStartDate || todayStr}  {/* <-- THÊM min={bookStartDate || todayStr} VÀO ĐÂY */}
                     value={bookEndDate}
                     onChange={(e) => setBookEndDate(e.target.value)}
                     className="w-full px-2 py-2 bg-white border border-blue-200 rounded-lg text-slate-900 text-xs font-bold"
