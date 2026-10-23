@@ -15,15 +15,25 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously } from 'firebase/auth';
-import firebaseConfig from '../../firebase-applet-config.json';
 import { AttendanceRecord, DepartmentPassRecord, Employee, RoomBooking, TrainingSession } from '../types';
 
-// Khởi tạo Firebase
+// Cấu hình trực tiếp project nva-smart-pass chuẩn xác 100%
+const firebaseConfig = {
+  apiKey: "AIzaSyCj82ngc_TpFkU-cOOENB3Ewd9ufWApeDk",
+  authDomain: "nva-smart-pass.firebaseapp.com",
+  projectId: "nva-smart-pass",
+  storageBucket: "nva-smart-pass.firebasestorage.app",
+  messagingSenderId: "884508830966",
+  appId: "1:884508830966:web:23931edcfa1832a3e910d7"
+};
+
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
+// KẾT NỐI VÀO DATABASE 'default' (HOẶC GỌI KHÔNG THAM SỐ)
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
-// Luôn cố gắng xác thực ẩn danh
+// Đăng nhập ẩn danh
 signInAnonymously(auth).catch((err) => {
   console.warn('[Firebase Auth] Anonymous sign-in warning:', err?.message);
 });
