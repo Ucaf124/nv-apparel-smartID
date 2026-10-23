@@ -835,7 +835,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   <input
                     type="date"
                     required
-                    min={todayStr}  {/* <-- THÊM min={todayStr} VÀO ĐÂY */}
+                    min={todayStr}
                     value={bookStartDate}
                     onChange={(e) => {
                       setBookStartDate(e.target.value);
@@ -849,7 +849,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   <input
                     type="date"
                     required
-                    min={bookStartDate || todayStr}  {/* <-- THÊM min={bookStartDate || todayStr} VÀO ĐÂY */}
+                    min={bookStartDate || todayStr}
                     value={bookEndDate}
                     onChange={(e) => setBookEndDate(e.target.value)}
                     className="w-full px-2 py-2 bg-white border border-blue-200 rounded-lg text-slate-900 text-xs font-bold"
