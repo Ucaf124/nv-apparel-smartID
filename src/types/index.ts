@@ -96,14 +96,15 @@ export interface RoomBooking {
   phone?: string;
   title: string;
   hostName?: string;
-  date: string;
-  startTime: string; // "09:00"
-  endTime: string;   // "10:30"
+  date: string;       // Ngày bắt đầu (YYYY-MM-DD)
+  endDate?: string;   // Ngày kết thúc (YYYY-MM-DD)
+  startTime: string;  // HH:mm
+  endTime: string;    // HH:mm
   participantsCount: number;
   equipmentsNeeded: string[];
-  status: 'confirmed' | 'checked_in' | 'cancelled' | 'completed';
-  checkedInAt?: string;
-  checkedOutAt?: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'rejected'; // pending: Chờ duyệt, confirmed: Đã duyệt
+  approvedBy?: string; // Tên người duyệt (duypt / yaitp)
+  approvedAt?: string; // Thời gian duyệt
   createdAt: string;
 }
 
