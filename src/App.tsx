@@ -147,37 +147,6 @@ export default function App() {
     localStorage.setItem('smartfactory_prod_bookings', JSON.stringify(bookings));
   }, [bookings]);
 
-  // 1. Tự động đồng bộ từ Máy Chủ Local khi web vừa mở lên
-  useEffect(() => {
-    fetch('/api/local/employees')
-      .then(res => res.json())
-      .then((data: Employee[]) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setEmployees(data);
-          localStorage.setItem('smartfactory_prod_roster', JSON.stringify(data));
-        }
-      })
-      .catch(console.error);
-
-    fetch('/api/local/attendance')
-      .then(res => res.json())
-      .then((data: AttendanceRecord[]) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setAttendanceRecords(data);
-        }
-      })
-      .catch(console.error);
-
-    fetch('/api/local/passes')
-      .then(res => res.json())
-      .then((data: DepartmentPassRecord[]) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setPasses(data);
-        }
-      })
-      .catch(console.error);
-  }, []);
-
   // Scanner Modal Controller
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerMode, setScannerMode] = useState<
@@ -255,11 +224,10 @@ export default function App() {
     });
 
     const unsubBookings = subscribeToRoomBookings((cloudBookings) => {
-      setBookings(cloudBookings || []);
-      if (cloudBookings && cloudBookings.length > 0) {
+      console.log('[App] Nhận được bookings từ Cloud:', cloudBookings);
+      if (Array.isArray(cloudBookings)) {
+        setBookings(cloudBookings);
         localStorage.setItem('smartfactory_prod_bookings', JSON.stringify(cloudBookings));
-      } else {
-        localStorage.removeItem('smartfactory_prod_bookings');
       }
     });
 
