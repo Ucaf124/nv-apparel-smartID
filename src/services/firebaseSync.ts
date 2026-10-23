@@ -12,56 +12,27 @@ import {
   onSnapshot, 
   writeBatch, 
   getDocs,
-  getDocFromServer,
   deleteDoc
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { AttendanceRecord, DepartmentPassRecord, Employee, RoomBooking, TrainingSession } from '../types';
 
-// Initialize Firebase App & Firestore with provisioned Database ID
+// Khởi tạo Firebase
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
 export const auth = getAuth(app);
 
-let isQuotaExhausted = false;
-
-function handleFirebaseError(context: string, err: any) {
-  if (
-    err?.code === 'resource-exhausted' || 
-    err?.code === 'auth/admin-restricted-operation' ||
-    (err?.message && (err.message.includes('Quota exceeded') || err.message.includes('quota') || err.message.includes('admin-restricted-operation')))
-  ) {
-    if (!isQuotaExhausted) {
-      isQuotaExhausted = true;
-      console.warn(`[Firebase Mode Switch] Operating in high-speed local storage mode (${context}).`);
-    }
-  } else {
-    console.error(`Error in ${context}:`, err);
-  }
-}
-
-// Silently sign in anonymously for authorized security rule context
+// Luôn cố gắng xác thực ẩn danh
 signInAnonymously(auth).catch((err) => {
-  handleFirebaseError('signInAnonymously', err);
+  console.warn('[Firebase Auth] Anonymous sign-in warning:', err?.message);
 });
 
-// Validate connection
-async function testConnection() {
-  if (isQuotaExhausted) return;
-  try {
-    await getDocFromServer(doc(db, 'settings', 'general'));
-  } catch (error) {
-    handleFirebaseError('testConnection', error);
-  }
-}
-testConnection();
-
-// Hàm lọc bỏ các trường undefined để Firestore không bao giờ bị lỗi
+// Hàm dọn dẹp các trường undefined để Firestore không bao giờ bị lỗi
 function cleanDataForFirestore<T extends Record<string, any>>(obj: T): Partial<T> {
   const cleaned: any = {};
   Object.keys(obj).forEach(key => {
-    if (obj[key] !== undefined) {
+    if (obj[key] !== undefined && obj[key] !== null) {
       cleaned[key] = obj[key];
     }
   });
@@ -71,22 +42,19 @@ function cleanDataForFirestore<T extends Record<string, any>>(obj: T): Partial<T
 // ======================= APP SETTINGS / LOGO SYNC =======================
 
 export function subscribeToCompanyLogo(callback: (logoUrl: string | null) => void) {
-  if (isQuotaExhausted) return () => {};
   const settingRef = doc(db, 'settings', 'general');
   return onSnapshot(settingRef, (snapshot) => {
     if (snapshot.exists()) {
-      const data = snapshot.data();
-      callback(data.customLogoUrl || null);
+      callback(snapshot.data().customLogoUrl || null);
     } else {
       callback(null);
     }
   }, (err) => {
-    handleFirebaseError('subscribeToCompanyLogo', err);
+    console.warn('Lỗi subscribe logo:', err?.message);
   });
 }
 
 export async function saveCompanyLogoToCloud(logoUrl: string | null) {
-  if (isQuotaExhausted) return;
   try {
     const settingRef = doc(db, 'settings', 'general');
     await setDoc(settingRef, {
@@ -94,133 +62,77 @@ export async function saveCompanyLogoToCloud(logoUrl: string | null) {
       updatedAt: new Date().toISOString()
     }, { merge: true });
   } catch (err) {
-    handleFirebaseError('saveCompanyLogoToCloud', err);
+    console.warn('Lỗi save logo:', err);
   }
 }
 
-// ======================= EMPLOYEES ROSTER SYNC (CHUẨN XÁC 5.379 NHÂN SỰ) =======================
+// ======================= EMPLOYEES ROSTER SYNC =======================
 
 export function subscribeToEmployees(callback: (employees: Employee[]) => void) {
-  if (isQuotaExhausted) return () => {};
   const shardsCol = collection(db, 'roster_shards');
-  
   return onSnapshot(shardsCol, (snapshot) => {
-    if (snapshot.empty) {
-      callback([]);
-      return;
-    }
-
-    // Đọc tất cả các shard theo thứ tự định danh shard_0000 -> shard_0026
-    const docs = snapshot.docs.sort((a, b) => a.id.localeCompare(b.id));
-    const fullList: Employee[] = [];
-
-    docs.forEach((docSnap) => {
-      const data = docSnap.data();
+    const list: Employee[] = [];
+    snapshot.forEach((d) => {
+      const data = d.data();
       if (data && Array.isArray(data.employees)) {
-        fullList.push(...data.employees);
+        list.push(...data.employees);
       }
     });
-
-    // Sắp xếp lại theo STT No từ 1 đến 5379
-    fullList.sort((a, b) => Number(a.No || 0) - Number(b.No || 0));
-
-    console.log(`[Firebase Cloud] Đã tải về thành công ${fullList.length} nhân sự`);
-    callback(fullList);
+    list.sort((a, b) => Number(a.No || 0) - Number(b.No || 0));
+    callback(list);
   }, (err) => {
-    handleFirebaseError('subscribeToEmployees', err);
+    console.warn('Lỗi subscribe employees:', err?.message);
   });
 }
 
 export async function saveEmployeesToCloud(employees: Employee[]) {
-  if (isQuotaExhausted) return;
-  
-  // Mỗi shard chứa 200 nhân sự (~50KB, nằm an toàn tuyệt đối dưới ngưỡng 1MB của Firestore)
-  // 5.379 nhân sự chia cho 200 = đúng 27 shards (shard_0000 đến shard_0026)
   const chunkSize = 200;
-
   try {
-    // 1. Xóa sạch các shard cũ trước
     const shardsSnapshot = await getDocs(collection(db, 'roster_shards'));
-    if (!shardsSnapshot.empty) {
-      const deleteBatch = writeBatch(db);
-      shardsSnapshot.docs.forEach((docSnap) => {
-        deleteBatch.delete(docSnap.ref);
-      });
-      await deleteBatch.commit();
-    }
+    const deleteBatch = writeBatch(db);
+    shardsSnapshot.docs.forEach(d => deleteBatch.delete(d.ref));
+    await deleteBatch.commit();
 
-    // 2. Ghi toàn bộ 27 shards mới trong 1 lần commit duy nhất (giới hạn batch là 500, 27 là quá nhỏ gọn)
     const saveBatch = writeBatch(db);
-    const totalShards = Math.ceil(employees.length / chunkSize);
-
     for (let i = 0; i < employees.length; i += chunkSize) {
       const chunk = employees.slice(i, i + chunkSize);
       const shardIndex = Math.floor(i / chunkSize);
-      // Dùng 4 chữ số 0000, 0001, 0002... để đảm bảo thứ tự luôn chuẩn từ 1 đến 5379
-      const shardId = `shard_${String(shardIndex).padStart(4, '0')}`;
-      const shardRef = doc(db, 'roster_shards', shardId);
-      
+      const shardRef = doc(db, 'roster_shards', `shard_${String(shardIndex).padStart(4, '0')}`);
       saveBatch.set(shardRef, {
         shardIndex: shardIndex,
         employees: chunk,
-        count: chunk.length,
         updatedAt: new Date().toISOString()
       });
     }
-
-    // 3. Cập nhật thông tin tổng số lượng
-    const metaRef = doc(db, 'settings', 'roster_meta');
-    saveBatch.set(metaRef, {
-      totalCount: employees.length,
-      totalShards: totalShards,
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
-
-    // Đẩy toàn bộ lên Cloud trong 1 lệnh duy nhất
     await saveBatch.commit();
-    console.log(`[Firebase Cloud] ĐÃ LƯU TRỌN VẸN CẢ ${employees.length} CÔNG NHÂN VIÊN LÊN CLOUD THÀNH CÔNG!`);
-  } catch (err: any) {
-    handleFirebaseError('saveEmployeesToCloud', err);
-    throw err;
+  } catch (err) {
+    console.warn('Lỗi save employees:', err);
   }
 }
 
 export async function updateSingleEmployeePhotoInCloud(employeeCode: string, photoUrl: string | null) {
-  if (isQuotaExhausted) return;
   try {
     const docRef = doc(db, 'employee_photos', employeeCode);
-    await setDoc(docRef, {
-      photoUrl: photoUrl,
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
+    await setDoc(docRef, { photoUrl, updatedAt: new Date().toISOString() }, { merge: true });
   } catch (err) {
-    handleFirebaseError('updateSingleEmployeePhotoInCloud', err);
+    console.warn('Lỗi save photo:', err);
   }
 }
 
 export async function clearAllEmployeesInCloud() {
-  if (isQuotaExhausted) return;
   try {
     const shardsSnapshot = await getDocs(collection(db, 'roster_shards'));
     const batch = writeBatch(db);
     shardsSnapshot.docs.forEach(d => batch.delete(d.ref));
     await batch.commit();
-
-    const legacySnapshot = await getDocs(collection(db, 'employees'));
-    if (!legacySnapshot.empty) {
-      const legacyBatch = writeBatch(db);
-      legacySnapshot.docs.forEach(d => legacyBatch.delete(d.ref));
-      await legacyBatch.commit();
-    }
   } catch (err) {
-    handleFirebaseError('clearAllEmployeesInCloud', err);
+    console.warn('Lỗi clear employees:', err);
   }
 }
 
 // ======================= TRAINING SESSIONS & ATTENDANCE =======================
 
 export function subscribeToTrainingSessions(callback: (sessions: TrainingSession[]) => void) {
-  if (isQuotaExhausted) return () => {};
   const sessionsCol = collection(db, 'training_sessions');
   return onSnapshot(sessionsCol, (snapshot) => {
     const list: TrainingSession[] = [];
@@ -228,26 +140,31 @@ export function subscribeToTrainingSessions(callback: (sessions: TrainingSession
       list.push(d.data() as TrainingSession);
     });
     list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    // Luôn gọi callback kể cả khi mảng rỗng [] để đồng bộ khi bị xóa
     callback(list);
   }, (err) => {
-    handleFirebaseError('subscribeToTrainingSessions', err);
+    console.warn('Lỗi subscribe sessions:', err?.message);
   });
 }
 
 export async function saveTrainingSessionToCloud(session: TrainingSession) {
-  if (isQuotaExhausted) return;
   try {
-    const dataToSave = cleanDataForFirestore(session);
-    await setDoc(doc(db, 'training_sessions', session.id), dataToSave, { merge: true });
-    console.log('[Firestore] Đã lưu TrainingSession thành công:', session.id, session.title);
+    const cleaned = cleanDataForFirestore(session);
+    await setDoc(doc(db, 'training_sessions', session.id), cleaned, { merge: true });
   } catch (err) {
-    handleFirebaseError('saveTrainingSessionToCloud', err);
-    throw err;
+    console.warn('Lỗi save session:', err);
+  }
+}
+
+export async function deleteTrainingSessionInCloud(sessionId: string) {
+  try {
+    await deleteDoc(doc(db, 'training_sessions', sessionId));
+  } catch (err) {
+    console.warn('Lỗi delete session:', err);
   }
 }
 
 export function subscribeToAttendanceRecords(callback: (records: AttendanceRecord[]) => void) {
-  if (isQuotaExhausted) return () => {};
   const colRef = collection(db, 'attendance_records');
   return onSnapshot(colRef, (snapshot) => {
     const list: AttendanceRecord[] = [];
@@ -257,67 +174,41 @@ export function subscribeToAttendanceRecords(callback: (records: AttendanceRecor
     list.sort((a, b) => (b.scanTime || '').localeCompare(a.scanTime || ''));
     callback(list);
   }, (err) => {
-    handleFirebaseError('subscribeToAttendanceRecords', err);
+    console.warn('Lỗi subscribe attendance:', err?.message);
   });
 }
 
 export async function saveAttendanceRecordToCloud(record: AttendanceRecord) {
-  if (isQuotaExhausted) return;
   try {
-    await setDoc(doc(db, 'attendance_records', record.id), record);
+    const cleaned = cleanDataForFirestore(record);
+    await setDoc(doc(db, 'attendance_records', record.id), cleaned, { merge: true });
   } catch (err) {
-    handleFirebaseError('saveAttendanceRecordToCloud', err);
+    console.warn('Lỗi save attendance:', err);
+  }
+}
+
+export async function deleteAttendanceRecordInCloud(recordId: string) {
+  try {
+    await deleteDoc(doc(db, 'attendance_records', recordId));
+  } catch (err) {
+    console.warn('Lỗi delete attendance:', err);
   }
 }
 
 export async function clearAttendanceRecordsInCloud() {
-  if (isQuotaExhausted) return;
   try {
     const snapshot = await getDocs(collection(db, 'attendance_records'));
     const batch = writeBatch(db);
     snapshot.docs.forEach((d) => batch.delete(d.ref));
     await batch.commit();
   } catch (err) {
-    handleFirebaseError('clearAttendanceRecordsInCloud', err);
+    console.warn('Lỗi clear attendance:', err);
   }
 }
 
-export async function deleteAttendanceRecordInCloud(recordId: string) {
-  if (isQuotaExhausted) return;
-  try {
-    await deleteDoc(doc(db, 'attendance_records', recordId));
-  } catch (err) {
-    handleFirebaseError('deleteAttendanceRecordInCloud', err);
-  }
-}
-
-export async function deleteTrainingSessionInCloud(sessionId: string) {
-  if (isQuotaExhausted) return;
-  try {
-    // 1. Xóa buổi họp
-    await deleteDoc(doc(db, 'training_sessions', sessionId));
-
-    // 2. Xóa luôn các lượt điểm danh thuộc buổi họp đó cho sạch rác
-    const attSnap = await getDocs(collection(db, 'attendance_records'));
-    const batch = writeBatch(db);
-    let count = 0;
-    attSnap.docs.forEach(d => {
-      if (d.data()?.sessionId === sessionId) {
-        batch.delete(d.ref);
-        count++;
-      }
-    });
-    if (count > 0) {
-      await batch.commit();
-    }
-  } catch (err) {
-    handleFirebaseError('deleteTrainingSessionInCloud', err);
-  }
-}
 // ======================= DEPARTMENT PASSES =======================
 
 export function subscribeToDepartmentPasses(callback: (passes: DepartmentPassRecord[]) => void) {
-  if (isQuotaExhausted) return () => {};
   const colRef = collection(db, 'department_passes');
   return onSnapshot(colRef, (snapshot) => {
     const list: DepartmentPassRecord[] = [];
@@ -327,40 +218,39 @@ export function subscribeToDepartmentPasses(callback: (passes: DepartmentPassRec
     list.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
     callback(list);
   }, (err) => {
-    handleFirebaseError('subscribeToDepartmentPasses', err);
+    console.warn('Lỗi subscribe passes:', err?.message);
   });
 }
 
 export async function saveDepartmentPassToCloud(pass: DepartmentPassRecord) {
-  if (isQuotaExhausted) return;
   try {
-    await setDoc(doc(db, 'department_passes', pass.id), pass);
+    const cleaned = cleanDataForFirestore(pass);
+    await setDoc(doc(db, 'department_passes', pass.id), cleaned, { merge: true });
   } catch (err) {
-    handleFirebaseError('saveDepartmentPassToCloud', err);
+    console.warn('Lỗi save pass:', err);
   }
 }
 
 export async function updateDepartmentPassInCloud(pass: DepartmentPassRecord) {
-  if (isQuotaExhausted) return;
   try {
-    await setDoc(doc(db, 'department_passes', pass.id), pass, { merge: true });
+    const cleaned = cleanDataForFirestore(pass);
+    await setDoc(doc(db, 'department_passes', pass.id), cleaned, { merge: true });
   } catch (err) {
-    handleFirebaseError('updateDepartmentPassInCloud', err);
+    console.warn('Lỗi update pass:', err);
   }
 }
 
 export async function deleteDepartmentPassInCloud(passId: string) {
-  if (isQuotaExhausted) return;
   try {
     await deleteDoc(doc(db, 'department_passes', passId));
   } catch (err) {
-    handleFirebaseError('deleteDepartmentPassInCloud', err);
+    console.warn('Lỗi delete pass:', err);
   }
 }
-// ======================= MEETING ROOM BOOKINGS =======================
+
+// ======================= MEETING ROOM BOOKINGS (ĐỒNG BỘ 100%) =======================
 
 export function subscribeToRoomBookings(callback: (bookings: RoomBooking[]) => void) {
-  if (isQuotaExhausted) return () => {};
   const colRef = collection(db, 'room_bookings');
   return onSnapshot(colRef, (snapshot) => {
     const list: RoomBooking[] = [];
@@ -368,29 +258,30 @@ export function subscribeToRoomBookings(callback: (bookings: RoomBooking[]) => v
       list.push(d.data() as RoomBooking);
     });
     list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    // Luôn gửi danh sách mới về cho máy khác, kể cả khi rỗng []
     callback(list);
   }, (err) => {
-    handleFirebaseError('subscribeToRoomBookings', err);
+    console.warn('Lỗi subscribe room bookings:', err?.message);
   });
 }
 
 export async function saveRoomBookingToCloud(booking: RoomBooking) {
-  if (isQuotaExhausted) return;
   try {
-    const dataToSave = cleanDataForFirestore(booking);
-    await setDoc(doc(db, 'room_bookings', booking.id), dataToSave, { merge: true });
-    console.log('[Firestore] Đã lưu RoomBooking thành công:', booking.id, booking.status);
+    const cleaned = cleanDataForFirestore(booking);
+    await setDoc(doc(db, 'room_bookings', booking.id), cleaned, { merge: true });
+    console.log('[Firestore] Đã lưu đặt phòng thành công lên Cloud:', booking.id, booking.title);
   } catch (err) {
-    handleFirebaseError('saveRoomBookingToCloud', err);
+    console.error('Lỗi save room booking lên cloud:', err);
     throw err;
   }
 }
 
 export async function deleteRoomBookingInCloud(bookingId: string) {
-  if (isQuotaExhausted) return;
   try {
     await deleteDoc(doc(db, 'room_bookings', bookingId));
+    console.log('[Firestore] Đã xóa vĩnh viễn đặt phòng trên Cloud:', bookingId);
   } catch (err) {
-    handleFirebaseError('deleteRoomBookingInCloud', err);
+    console.error('Lỗi delete room booking trên cloud:', err);
+    throw err;
   }
 }
