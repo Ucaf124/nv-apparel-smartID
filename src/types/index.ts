@@ -32,12 +32,16 @@ export interface TrainingSession {
   id: string;
   title: string;
   instructor: string;
+  instructorCode?: string; 
   location: string;
   date: string;
   startTime: string;
   endTime: string;
   type: 'training' | 'meeting' | 'safety' | 'other' | string;
+  customTypeName?: string;
   description?: string;
+  isAttendanceOpen?: boolean;
+  currentShift?: string;
   createdAt: string;
   status: 'active' | 'completed' | 'cancelled';
 }
@@ -53,6 +57,7 @@ export interface AttendanceRecord {
   position: string;
   scanTime: string;
   date: string;
+  attendanceShift?: string;
   method: 'camera_scan' | 'manual_entry' | 'photo_scan';
   note?: string;
 }
