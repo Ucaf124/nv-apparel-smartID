@@ -31,8 +31,7 @@ export const PRESET_ROOMS = [
 ];
 
 export const COMMON_DEPARTMENTS = [
-  'Xưởng 1 (Production - May)',
-  'Xưởng 2 (Production - May)',
+  'Bộ phận Production',
   'Bộ phận Cutting',
   'Bộ phận Store',
   'Bộ phận MI',
