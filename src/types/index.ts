@@ -66,6 +66,7 @@ export interface AttendanceRecord {
 
 export interface DepartmentPassRecord {
   id: string;
+  factoryCheckPoint?: string;
   employeeCode: string;
   employeeName: string;
   employeeDepartment: string;
