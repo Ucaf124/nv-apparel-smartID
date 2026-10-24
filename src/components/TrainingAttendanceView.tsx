@@ -407,9 +407,6 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                 >
                   <option value="Ca Sáng">☀️ Ca Sáng (Đợt 1)</option>
                   <option value="Ca Chiều">🌤️ Ca Chiều (Đợt 2)</option>
-                  <option value="Ca Tối">🌙 Ca Tối / Tăng Ca</option>
-                  <option value="Ngày 2 - Sáng">📅 Ngày 2 - Sáng</option>
-                  <option value="Ngày 2 - Chiều">📅 Ngày 2 - Chiều</option>
                 </select>
               </div>
 
