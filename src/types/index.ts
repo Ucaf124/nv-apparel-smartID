@@ -31,6 +31,7 @@ export interface Employee {
 export interface TrainingSession {
   id: string;
   title: string;
+  shiftTopics?: Record<string, string>;
   instructor: string;
   instructorCode?: string; 
   location: string;
@@ -50,6 +51,7 @@ export interface AttendanceRecord {
   id: string;
   sessionId: string;
   sessionTitle: string;
+  shiftTopicTitle?: string;
   employeeCode: string;
   employeeName: string;
   department: string;
