@@ -82,7 +82,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     const actionText = isCurrentlyOpen ? 'KHÓA (KẾT THÚC) ĐIỂM DANH' : 'MỞ KHÓA ĐIỂM DANH';
 
     const promptInput = prompt(
-      `🔐 BẢO MẬT ${actionText}\n\nBuổi họp: "${session.title}"\nNgười chủ trì: ${session.instructor}\n\nĐể ${actionText.toLowerCase()}, vui lòng nhập MÃ THẺ của Người chủ trì hoặc Mật khẩu Quản trị (8888):`
+      `🔐 BẢO MẬT ${actionText}\n\nBuổi họp: "${session.title}"\nNgười chủ trì: ${session.instructor}\n\nĐể ${actionText.toLowerCase()}, vui lòng nhập MÃ THẺ của Người chủ trì cuộc họp:`
     );
 
     if (promptInput === null) return; // Người dùng bấm Hủy
