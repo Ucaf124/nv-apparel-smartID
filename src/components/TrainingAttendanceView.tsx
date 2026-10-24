@@ -405,8 +405,8 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                   onChange={(e) => handleChangeShift(currentSession, e.target.value)}
                   className="px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-lg text-xs font-extrabold text-blue-900 focus:outline-none cursor-pointer"
                 >
-                  <option value="Ca Sáng">☀️ Ca Sáng (Đợt 1)</option>
-                  <option value="Ca Chiều">🌤️ Ca Chiều (Đợt 2)</option>
+                  <option value="Ca Sáng">☀️Sáng 7:30-11:30 (Đợt 1)</option>
+                  <option value="Ca Chiều">🌤️Chiều 12:30-16:30 (Đợt 2)</option>
                 </select>
               </div>
 
