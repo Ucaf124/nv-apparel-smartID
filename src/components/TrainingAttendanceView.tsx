@@ -280,7 +280,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
 
     // 1. Xác thực bảo mật: Phải là Người chủ trì hoặc Admin pass 8888
     const promptPin = prompt(
-      `🔐 BẢO MẬT ĐỔI CHỦ ĐỀ [${shift}]\n\nNgười chủ trì: ${session.instructor}\nVui lòng nhập MÃ THẺ của Người chủ trì hoặc Mật khẩu Quản trị (8888):`
+      `🔐 BẢO MẬT ĐỔI CHỦ ĐỀ [${shift}]\n\nNgười chủ trì: ${session.instructor}\nVui lòng nhập MÃ THẺ của Người chủ trì cuộc họp:`
     );
 
     if (promptPin === null) return;
