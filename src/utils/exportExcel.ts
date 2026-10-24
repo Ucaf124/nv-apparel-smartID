@@ -14,7 +14,8 @@ export function exportAttendanceToExcel(session: TrainingSession, records: Atten
     'Phòng Ban': r.department,
     'Nhà Máy / Xưởng': r.factory,
     'Chức Vụ': r.position,
-    'Đợt Điểm Danh': r.attendanceShift || 'Ca Sáng', // Hiển thị rõ Ca Sáng / Ca Chiều
+    'Đợt Điểm Danh': r.attendanceShift || 'Ca Sáng',
+    'Chủ Đề Đào Tạo Của Ca': r.shiftTopicTitle || r.sessionTitle, // Xuất đúng chủ đề của ca đó
     'Giờ Điểm Danh': r.scanTime,
     'Ngày': r.date,
     'Phương Thức': r.method === 'photo_scan' ? 'Chụp/Tải Ảnh Thẻ' : r.method === 'manual_entry' ? 'Nhập Mã Số' : 'Quét Camera Barcode',
@@ -31,7 +32,8 @@ export function exportAttendanceToExcel(session: TrainingSession, records: Atten
     { wch: 22 },
     { wch: 16 },
     { wch: 25 },
-    { wch: 18 }, // Đợt điểm danh
+    { wch: 16 }, // Đợt
+    { wch: 35 }, // Chủ đề của ca
     { wch: 14 },
     { wch: 12 },
     { wch: 22 },
