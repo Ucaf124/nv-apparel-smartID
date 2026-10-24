@@ -151,7 +151,7 @@ export default function App() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerMode, setScannerMode] = useState<
     | { type: 'attendance'; sessionId: string }
-    | { type: 'department_pass'; fromDept: string; toDept: string; reason: string; passType: 'check_in' | 'check_out' }
+    | { type: 'department_pass'; factory: string; fromDept: string; toDept: string; reason: string; passType: 'check_in' | 'check_out' }
     | { type: 'room_booking'; roomId: string; date: string }
     | { type: 'room_check_in'; bookingId: string }
     | null
@@ -362,6 +362,7 @@ export default function App() {
   };
 
   const handleOpenScannerForPass = (config: {
+    factory: string;
     fromDept: string;
     toDept: string;
     reason: string;
@@ -468,9 +469,8 @@ export default function App() {
       return;
     }
 
-    // 2. Process Department Pass (CHẶN NẾU KHÔNG CÓ TRONG DANH SÁCH NV)
+    // 2. Process Department Pass
     if (scannerMode?.type === 'department_pass') {
-      // KIỂM TRA XEM MÃ CÓ TRONG DANH SÁCH CÔNG NHÂN KHÔNG
       const isExistInRoster = employees.some(
         e => e.Employee_Code.trim().toLowerCase() === code.toLowerCase()
       );
@@ -478,13 +478,14 @@ export default function App() {
       if (!isExistInRoster && !matchedEmployee) {
         soundFX.playError();
         alert(`❌ TỪ CHỐI TRUY CẬP!\n\nMã thẻ "${code}" không tồn tại trong danh sách công nhân viên của công ty.\nBạn không phải công nhân viên của NV, bạn không được vào!`);
-        return; // Chặn không cho ghi nhận
+        return;
       }
 
-      const { fromDept, toDept, reason, passType } = scannerMode;
+      const { factory, fromDept, toDept, reason, passType } = scannerMode;
 
       const newPass: DepartmentPassRecord = {
         id: `pass_${Date.now()}`,
+        factoryCheckPoint: factory || 'NV1', // Lưu nhà máy NV1 hoặc NV2
         employeeCode: code,
         employeeName: empName,
         employeeDepartment: empDept,
@@ -503,7 +504,7 @@ export default function App() {
       soundFX.playScanSuccess();
       showToast(
         'success', 
-        'Ghi nhận VÀO bộ phận thành công!',
+        `Ghi nhận VÀO [${factory || 'NV1'}] thành công!`,
         `${empName} (${code}) • ${fromDept} → ${toDept} lúc ${timeStr}`
       );
       setScannerOpen(false);
