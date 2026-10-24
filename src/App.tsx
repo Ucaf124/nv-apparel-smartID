@@ -427,6 +427,9 @@ export default function App() {
 
       // Đợt điểm danh hiện tại của buổi này (Mặc định là Ca Sáng nếu chưa chọn)
       const currentShiftName = targetSession.currentShift || 'Ca Sáng';
+      const effectiveShiftTitle = (targetSession.shiftTopics && targetSession.shiftTopics[currentShiftName]) 
+        ? targetSession.shiftTopics[currentShiftName] 
+        : targetSession.title;
 
       // 3. KIỂM TRA TRÙNG LẶP THEO ĐÚNG ĐỢT ĐIỂM DANH ĐÓ
       const alreadyCheckedInThisShift = attendanceRecords.some(
@@ -446,6 +449,7 @@ export default function App() {
         id: `att_${Date.now()}`,
         sessionId: targetSession.id,
         sessionTitle: targetSession.title,
+        shiftTopicTitle: effectiveShiftTitle,
         employeeCode: code,
         employeeName: empName,
         department: empDept,
