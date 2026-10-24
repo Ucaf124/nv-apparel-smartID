@@ -137,9 +137,57 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
         throw new Error('Không tìm thấy dữ liệu hợp lệ trong file Excel. Vui lòng kiểm tra lại cấu trúc cột.');
       }
 
-      setEmployees(parsed);
+      // 1. TỰ ĐỘNG LỌC TRÙNG BÊN TRONG FILE EXCEL VỪA TẢI (Dựa theo Mã Thẻ Employee_Code)
+      const uniqueNewEmployeesMap = new Map<string, Employee>();
+      parsed.forEach(emp => {
+        const cleanCode = emp.Employee_Code.trim().toLowerCase();
+        if (cleanCode && !uniqueNewEmployeesMap.has(cleanCode)) {
+          uniqueNewEmployeesMap.set(cleanCode, emp);
+        }
+      });
+      const deduplicatedParsed = Array.from(uniqueNewEmployeesMap.values());
+
+      let finalRoster: Employee[] = [];
+
+      // 2. NẾU ĐÃ CÓ SẴN DANH SÁCH CŨ TRONG HỆ THỐNG -> HỎI LỰA CHỌN GHI ĐÈ HAY CỘNG DỒN
+      if (employees.length > 0) {
+        const confirmMerge = confirm(
+          `📊 PHÁT HIỆN HỆ THỐNG ĐÃ CÓ ${employees.length.toLocaleString()} NHÂN SỰ!\n\nBạn muốn xử lý file Excel mới (${deduplicatedParsed.length.toLocaleString()} người) như thế nào?\n\n• Bấm [OK] để: NẠP BỔ SUNG & CẬP NHẬT (Không làm mất công nhân cũ, tự động loại bỏ trùng lặp mã thẻ).\n• Bấm [Cancel] để: THAY THẾ TOÀN BỘ (Xóa sạch danh sách cũ, chỉ lấy danh sách trong file mới này).`
+        );
+
+        if (confirmMerge) {
+          // CHẾ ĐỘ NẠP BỔ SUNG & TỰ ĐỘNG CHỐNG TRÙNG
+          const existingMap = new Map<string, Employee>();
+          employees.forEach(emp => {
+            existingMap.set(emp.Employee_Code.trim().toLowerCase(), emp);
+          });
+
+          // Gộp người mới vào, nếu trùng mã thẻ thì lấy thông tin mới nhất cập nhật đè lên
+          deduplicatedParsed.forEach(newEmp => {
+            existingMap.set(newEmp.Employee_Code.trim().toLowerCase(), newEmp);
+          });
+
+          finalRoster = Array.from(existingMap.values());
+        } else {
+          // CHẾ ĐỘ THAY THẾ TOÀN BỘ
+          finalRoster = deduplicatedParsed;
+        }
+      } else {
+        finalRoster = deduplicatedParsed;
+      }
+
+      // Đánh lại số thứ tự STT chuẩn từ 1 đến hết
+      finalRoster = finalRoster.map((emp, idx) => ({
+        ...emp,
+        No: idx + 1
+      }));
+
+      // Cập nhật danh sách
+      setEmployees(finalRoster);
       soundFX.playScanSuccess();
-      setUploadSuccessMessage(`Đã nhập thành công ${parsed.length} công nhân viên từ file "${file.name}"!`);
+      setUploadSuccessMessage(
+        `Đã nạp thành công! Hệ thống hiện có tổng cộng ${finalRoster.length.toLocaleString()} công nhân viên (Đã tự động lọc trùng mã thẻ).`
+      );
       setTimeout(() => setUploadSuccessMessage(null), 6000);
     } catch (err: unknown) {
       console.error('Upload excel error:', err);
