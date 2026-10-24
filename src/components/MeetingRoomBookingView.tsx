@@ -243,6 +243,29 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     alert('✅ Đã gửi yêu cầu đặt phòng thành công! Cuộc họp đang ở trạng thái CHỜ XÁC NHẬN từ chị Mỹ Duyên hoặc anh Yai.');
   };
 
+  // HÀM BẢO MẬT XUẤT EXCEL LỊCH PHÒNG HỌP (BẮT BUỘC NHẬP PASS 8888)
+  const handleExportBookingsSecure = () => {
+    if (bookings.length === 0) {
+      alert('Chưa có dữ liệu lịch đặt phòng nào để xuất file!');
+      return;
+    }
+
+    const pin = prompt(
+      '🔐 BẢO MẬT XUẤT LỊCH PHÒNG HỌP\n\nFile Excel chứa đầy đủ danh sách cuộc họp, mã thẻ người đặt và phiếu F&B.\nVui lòng nhập Mật khẩu Quản trị để tải:'
+    );
+
+    if (pin === null) return; // Người dùng bấm Hủy
+
+    if (pin.trim() !== '8888') {
+      soundFX.playError();
+      alert('❌ Mật khẩu quản trị không đúng! Bạn không có quyền tải file lịch phòng họp này.');
+      return;
+    }
+
+    soundFX.playScanSuccess();
+    exportRoomBookingsToExcel(bookings);
+  };
+  
   // HÀM PHÊ DUYỆT ĐẶT PHÒNG
   const handleApproveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -414,8 +437,10 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
             </button>
 
             <button
-              onClick={() => exportRoomBookingsToExcel(bookings)}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+              type="button"
+              onClick={handleExportBookingsSecure}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+              title="Xuất file Excel lịch phòng họp (Cần mật khẩu quản trị)"
             >
               <FileSpreadsheet className="w-4 h-4" />
               <span className="hidden sm:inline">Xuất Excel</span>
@@ -742,7 +767,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                         <button
                           onClick={() => handleCancelBooking(booking)}
                           className="p-2 rounded-xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors shadow-2xs"
-                          title="Hủy / Xóa lịch này (Cần mã thẻ người đặt hoặc pass 8888)"
+                          title="Hủy / Xóa lịch này (Cần mã thẻ người đặt)"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
