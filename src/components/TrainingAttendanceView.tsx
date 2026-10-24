@@ -272,6 +272,55 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
       }
     }
   };
+
+  // HÀM ĐỔI CHỦ ĐỀ CHO RIÊNG ĐỢT ĐIỂM DANH NÀY (CA SÁNG / CA CHIỀU)
+  const handleEditShiftTopic = async (session: TrainingSession) => {
+    const shift = session.currentShift || 'Ca Sáng';
+    const currentTopic = (session.shiftTopics && session.shiftTopics[shift]) || session.title;
+
+    // 1. Xác thực bảo mật: Phải là Người chủ trì hoặc Admin pass 8888
+    const promptPin = prompt(
+      `🔐 BẢO MẬT ĐỔI CHỦ ĐỀ [${shift}]\n\nNgười chủ trì: ${session.instructor}\nVui lòng nhập MÃ THẺ của Người chủ trì hoặc Mật khẩu Quản trị (8888):`
+    );
+
+    if (promptPin === null) return;
+
+    const cleanInput = promptPin.trim().toLowerCase();
+    const isInstructor = session.instructorCode 
+      ? cleanInput === session.instructorCode.trim().toLowerCase()
+      : false;
+    const isAdmin = cleanInput === '8888';
+
+    if (!isInstructor && !isAdmin) {
+      soundFX.playError();
+      alert('❌ Xác thực thất bại! Chỉ người chủ trì cuộc họp mới có quyền đổi chủ đề của ca học.');
+      return;
+    }
+
+    // 2. Nhập tên chủ đề mới cho ca này
+    const newTopicName = prompt(
+      `📝 ĐỔI CHỦ ĐỀ ĐÀO TẠO CHO [${shift}]:\n(Chủ đề ca trước vẫn được giữ nguyên độc lập)\n\nNhập tên chủ đề mới:`,
+      currentTopic
+    );
+
+    if (newTopicName === null || !newTopicName.trim()) return;
+
+    const updatedTopics = {
+      ...(session.shiftTopics || {}),
+      [shift]: newTopicName.trim()
+    };
+
+    const updatedSession: TrainingSession = {
+      ...session,
+      shiftTopics: updatedTopics
+    };
+
+    setSessions(prev => prev.map(s => s.id === session.id ? updatedSession : s));
+    await saveTrainingSessionToCloud(updatedSession);
+
+    soundFX.playScanSuccess();
+    alert(`✅ Đã cập nhật chủ đề cho [${shift}] thành công!\n"${newTopicName.trim()}"`);
+  };
   
   // HÀM XÓA LƯỢT ĐIỂM DANH (BẢO MẬT: BẮT BUỘC NHẬP PASS 8888)
   const handleDeleteRecord = async (record: AttendanceRecord) => {
@@ -362,9 +411,26 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                 </span>
               </div>
 
-              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 leading-snug">
-                {currentSession.title}
-              </h3>
+              {/* TIÊU ĐỀ CUỘC HỌP THEO ĐỢT HIỆN TẠI */}
+              <div className="space-y-0.5">
+                <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug flex items-center gap-2 flex-wrap">
+                  <span>
+                    {(currentSession.shiftTopics && currentSession.shiftTopics[currentSession.currentShift || 'Ca Sáng']) || currentSession.title}
+                  </span>
+                  {currentSession.shiftTopics && currentSession.shiftTopics[currentSession.currentShift || 'Ca Sáng'] && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-bold border border-purple-200">
+                      Chủ đề riêng [{currentSession.currentShift || 'Ca Sáng'}]
+                    </span>
+                  )}
+                </h3>
+
+                {/* Nếu ca này có đổi tên riêng thì vẫn hiện tên gốc ban đầu nhỏ ở dưới */}
+                {currentSession.shiftTopics && currentSession.shiftTopics[currentSession.currentShift || 'Ca Sáng'] && (
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    (Khóa đào tạo gốc: {currentSession.title})
+                  </p>
+                )}
+              </div>
 
               <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
                 <span><strong>Giảng viên / Chủ trì:</strong> {currentSession.instructor}</span>
@@ -395,17 +461,29 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                 </button>
               </div>
 
-              {/* CHỌN ĐỢT ĐIỂM DANH (CA SÁNG / CA CHIỀU) */}
+              {/* CHỌN ĐỢT ĐIỂM DANH (CA SÁNG / CA CHIỀU) + NÚT ĐỔI CHỦ ĐỀ */}
               <div className="flex flex-col p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
-                <span className="text-[10px] font-bold text-slate-500 uppercase mb-1">
-                  Đợt điểm danh
-                </span>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">
+                    Đợt điểm danh
+                  </span>
+                  {/* NÚT BẤM ĐỔI CHỦ ĐỀ CHO RIÊNG CA NÀY */}
+                  <button
+                    type="button"
+                    onClick={() => handleEditShiftTopic(currentSession)}
+                    className="text-[10px] text-blue-600 hover:text-blue-800 font-bold hover:underline"
+                    title="Đổi chủ đề đào tạo riêng cho ca này (Cần mã thẻ giảng viên)"
+                  >
+                    Đổi chủ đề ✏️
+                  </button>
+                </div>
+
                 <select
                   value={currentSession.currentShift || 'Ca Sáng'}
                   onChange={(e) => handleChangeShift(currentSession, e.target.value)}
                   className="px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-lg text-xs font-extrabold text-blue-900 focus:outline-none cursor-pointer"
                 >
-                  <option value="Ca Sáng">☀️Sáng 7:30-11:30 (Đợt 1)</option>
+                  <option value="Ca Sáng">☀️Sáng 07:00-11:30 (Đợt 1)</option>
                   <option value="Ca Chiều">🌤️Chiều 12:30-16:30 (Đợt 2)</option>
                 </select>
               </div>
@@ -657,6 +735,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                     <th className="p-3">Bộ Phận / Xưởng</th>
                     <th className="p-3">Chức Vụ</th>
                     <th className="p-3">Giờ Điểm Danh</th>
+                    <th className="p-3">Chủ Đề Đào Tạo Của Ca</th>
                     <th className="p-3">Phương Thức</th>
                     <th className="p-3 w-14 text-center">Thao Tác</th>
                   </tr>
@@ -689,6 +768,9 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                         <span className="px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-800 font-bold text-[11px] border border-blue-200">
                           {r.attendanceShift || 'Ca Sáng'}
                         </span>
+                      </td>
+                      <td className="p-3 text-slate-800 font-bold max-w-xs truncate" title={r.shiftTopicTitle || r.sessionTitle}>
+                        {r.shiftTopicTitle || r.sessionTitle}
                       </td>
                       <td className="p-3 font-mono text-emerald-700 font-bold">
                         {r.scanTime}
