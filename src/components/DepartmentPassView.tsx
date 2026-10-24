@@ -29,6 +29,7 @@ interface DepartmentPassViewProps {
   passes: DepartmentPassRecord[];
   setPasses: React.Dispatch<React.SetStateAction<DepartmentPassRecord[]>>;
   onOpenScannerForPass: (config: {
+    factory: string; // Thêm trường factory bắt buộc
     fromDept: string;
     toDept: string;
     reason: string;
@@ -49,6 +50,11 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'returned'>('all');
 
+  // BẮT BUỘC CHỌN NHÀ MÁY (Mặc định NV1)
+  const [selectedFactory, setSelectedFactory] = useState<'NV1' | 'NV2'>('NV1');
+  const [selectedFactoryFilter, setSelectedFactoryFilter] = useState<string[]>([]);
+  const uniqueFactories = useMemo(() => ['NV1', 'NV2'], []);
+  
   // Multi-select filters cho từng cột (dạng Excel Filter)
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [selectedRoutes, setSelectedRoutes] = useState<string[]>([]);
@@ -92,7 +98,11 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                           p.toDepartment.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           p.reason.toLowerCase().includes(searchTerm.toLowerCase());
       if (!matchSearch) return false;
-
+      // Lọc cột Nhà Máy (Chốt)
+      if (selectedFactoryFilter.length > 0) {
+        const passFactory = p.factoryCheckPoint || 'NV1';
+        if (!selectedFactoryFilter.includes(passFactory)) return false;
+      }
       // 2. Lọc nhanh thanh công cụ
       if (statusFilter === 'active' && p.status !== 'active') return false;
       if (statusFilter === 'returned' && p.status !== 'returned') return false;
@@ -114,6 +124,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
       const outStatus = p.status === 'active' ? 'Chưa Check-Out' : 'Đã về';
       if (selectedOutStatuses.length > 0 && !selectedOutStatuses.includes(outStatus)) return false;
 
+      
       return true;
     });
   }, [passes, searchTerm, statusFilter, selectedEmployees, selectedRoutes, selectedReasons, selectedInDates, selectedOutStatuses]);
@@ -121,6 +132,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
   const handleStartScan = () => {
     const finalReason = customReason.trim() || reason;
     onOpenScannerForPass({
+      factory: selectedFactory, // Truyền nhà máy đã chọn sang máy quét
       fromDept,
       toDept,
       reason: finalReason,
@@ -325,6 +337,23 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* 1. CHỌN NHÀ MÁY (BẮT BUỘC) */}
+            <div>
+              <label className="block text-xs font-black text-slate-800 mb-1 flex items-center gap-1">
+                <span>🏢 Nhà Máy (Chốt Quẹt Thẻ)</span>
+                <span className="text-rose-500">*</span>
+              </label>
+              <select
+                required
+                value={selectedFactory}
+                onChange={(e) => setSelectedFactory(e.target.value as 'NV1' | 'NV2')}
+                className="w-full px-3 py-2.5 bg-blue-50/80 border-2 border-blue-400 rounded-xl text-xs text-blue-950 font-black focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-xs cursor-pointer"
+              >
+                <option value="NV1">🏭 Nhà máy NV1 (Factory 1)</option>
+                <option value="NV2">🏭 Nhà máy NV2 (Factory 2)</option>
+              </select>
+            </div>
+            
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Từ Bộ Phận (Nơi xuất phát)
@@ -506,6 +535,13 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-700 font-extrabold select-none">
                   <th className="p-3 w-12 text-center">STT</th>
+                  
+                  <th className="p-3 w-28">
+                    <div className="flex items-center">
+                      <span>Nhà Máy</span>
+                      {renderMultiSelectFilter('factory', 'Nhà Máy', uniqueFactories, selectedFactoryFilter, setSelectedFactoryFilter)}
+                    </div>
+                  </th>
 
                   {/* CỘT MÃ & HỌ TÊN + BỘ LỌC MULTI-SELECT */}
                   <th className="p-3">
@@ -559,6 +595,18 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                       <td className="p-3 text-center text-slate-400 font-mono font-medium">
                         {index + 1}
                       </td>
+
+                      <td className="p-3">
+                        <span className={`px-2.5 py-1 rounded-lg text-xs font-black inline-flex items-center gap-1 border shadow-2xs ${
+                          (p.factoryCheckPoint || 'NV1') === 'NV1'
+                            ? 'bg-blue-50 text-blue-800 border-blue-200'
+                            : 'bg-purple-50 text-purple-800 border-purple-200'
+                        }`}>
+                          <span>🏢</span>
+                          <span>{p.factoryCheckPoint || 'NV1'}</span>
+                        </span>
+                      </td>
+                      
                       <td className="p-3">
                         <div className="font-bold text-slate-900">{p.employeeName}</div>
                         <div className="text-[11px] font-mono text-blue-700 font-bold">
