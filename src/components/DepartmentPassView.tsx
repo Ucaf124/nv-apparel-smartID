@@ -187,7 +187,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
       alert('Chưa có dữ liệu nhật ký ra/vào để xuất file!');
       return;
     }
-    const pin = prompt('🔐 BẢO MẬT XUẤT NHẬT KÝ\n\nVui lòng nhập Mật khẩu Quản trị (8888) để tải file Excel:');
+    const pin = prompt('🔐 BẢO MẬT XUẤT NHẬT KÝ\n\nVui lòng nhập Mật khẩu Quản trị để tải file Excel:');
     if (pin === null) return;
     if (pin.trim() !== '8888') {
       soundFX.playError();
