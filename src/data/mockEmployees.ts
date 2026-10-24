@@ -33,8 +33,8 @@ export const PRESET_ROOMS = [
 export const COMMON_DEPARTMENTS = [
   'Xưởng 1 (Production - May)',
   'Xưởng 2 (Production - May)',
-  'Tổ Cắt (Cutting Division)',
-  'Kho Nguyên Phụ Liệu (Warehouse)',
+  'Bộ phận Cutting',
+  'Bộ phận Store',
   'Bộ phận MI',
   'Bộ phận Supermarket',
   'Bộ phận Heat stranfer',
@@ -43,10 +43,11 @@ export const COMMON_DEPARTMENTS = [
   'Bộ phận Screen',
   'Bộ phận PCO',
   'Bộ phận IE',
+  'Bộ phận Scan',
   'Bộ Phận Quality (QA/QC)',
   'Bộ phận Kỹ Thuật May (TI)',
-  'Bộ phận Bảo Trì (Maintenance)',
-  'Phòng Kế Hoạch Sản Xuất (PPC)',
+  'Bộ phận Bảo Trì (MTN)',
+  'Bộ phận kế hoạc (PPC)',
   'Văn Phòng Nhân Sự (HR Dept)',
   'Phòng Kế Toán & Tài Chính (Finance)',
   'Bộ Phận Xuất Nhập Khẩu (Logistics)'
@@ -56,9 +57,13 @@ export const COMMON_MOVE_REASONS = [
   'Giao nhận bán thành phẩm (BTP)',
   'Lấy mẫu vải & phụ liệu',
   'Bảo trì, sửa chữa máy móc chuyền',
+  'Scan kim loại',
+  'Sửa máy scan',
+  'Vệ sinh máy & kiểm tra máy scan',
   'Hỗ trợ kỹ thuật may & chuyền sản xuất',
   'Kiểm tra chất lượng đột xuất (Inline QA)',
   'Liên hệ thủ tục nhân sự / Ký giấy tờ',
   'Họp nhanh trao đổi công việc',
-  'Kiểm kê hàng hóa tồn kho'
+  'Kiểm kê hàng hóa tồn kho',
+  'Lý do khác'
 ];
