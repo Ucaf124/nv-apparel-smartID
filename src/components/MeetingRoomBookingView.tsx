@@ -16,13 +16,9 @@ import {
   MapPin, 
   CalendarDays,
   Calendar as CalendarIcon,
-  Check,
-  X,
   ChevronLeft,
   ChevronRight,
-  ShieldCheck,
-  UserCheck,
-  Lock
+  ShieldCheck
 } from 'lucide-react';
 import { Employee, RoomBooking, TrainingSession, maskEmployeeCode } from '../types';
 import { PRESET_ROOMS } from '../data/mockEmployees';
@@ -64,7 +60,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth()); // 0 - 11
 
-  // Form states
+  // Form states đặt phòng
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [modalRoomId, setModalRoomId] = useState('vinh_ha_long');
   const [bookTitle, setBookTitle] = useState('');
@@ -95,7 +91,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
   const [cateringPrepTime, setCateringPrepTime] = useState('09:30');
   const [cateringCost, setCateringCost] = useState('');
   const [cateringLocation, setCateringLocation] = useState('');
-  
+
   // Popup duyệt đăng nhập
   const [approvingBooking, setApprovingBooking] = useState<RoomBooking | null>(null);
   const [approverUser, setApproverUser] = useState('');
@@ -117,13 +113,11 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     }
   };
 
-  // Helper kiểm tra 1 ngày cụ thể có nằm trong dải [startDate, endDate] của booking hay không
   const isDateInRange = (checkDate: string, startDate: string, endDate?: string) => {
     const end = endDate || startDate;
     return checkDate >= startDate && checkDate <= end;
   };
 
-  // Lọc bookings cho ngày đang chọn
   const dateBookings = useMemo(() => {
     return bookings.filter(b => isDateInRange(selectedDate, b.date, b.endDate));
   }, [bookings, selectedDate]);
@@ -132,7 +126,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     return dateBookings.filter(b => b.roomId === selectedRoomId);
   }, [dateBookings, selectedRoomId]);
 
-  // HÀM TẠO ĐẶT PHÒNG (TRẠNG THÁI BAN ĐẦU: PENDING - CHỜ DUYỆT)
+  // HÀM TẠO ĐẶT PHÒNG
   const handleCreateBooking = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -141,14 +135,23 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       setFormError('Vui lòng nhập chủ đề cuộc họp');
       return;
     }
-    // 1. CHẶN ĐẶT NGÀY TRONG QUÁ KHỨ
+    if (!bookHostName.trim()) {
+      setFormError('Vui lòng nhập người chủ trì / người họp');
+      return;
+    }
+    if (!bookEmpCode.trim()) {
+      setFormError('Vui lòng nhập hoặc quét mã thẻ người đặt');
+      return;
+    }
+
+    // 1. Chặn đặt ngày quá khứ
     if (bookStartDate < todayStr) {
       soundFX.playError();
       setFormError('Không thể đặt phòng cho ngày trong quá khứ! Vui lòng chọn từ hôm nay trở đi.');
       return;
     }
 
-    // 2. NẾU ĐẶT TRONG NGÀY HÔM NAY -> CHẶN ĐẶT GIỜ ĐÃ TRÔI QUA TRONG QUÁ KHỨ
+    // 2. Chặn đặt giờ quá khứ nếu là hôm nay
     if (bookStartDate === todayStr) {
       const d = new Date();
       const nowHM = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
@@ -158,15 +161,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
         return;
       }
     }
-    
-    if (!bookHostName.trim()) {
-      setFormError('Vui lòng nhập người chủ trì / người họp');
-      return;
-    }
-    if (!bookEmpCode.trim()) {
-      setFormError('Vui lòng nhập hoặc quét mã thẻ người đặt');
-      return;
-    }
+
     if (bookStartDate > bookEndDate) {
       setFormError('Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu');
       return;
@@ -176,18 +171,16 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       return;
     }
 
-    // Kiểm tra trùng lịch: Trong bất kỳ ngày nào thuộc dải ngày [bookStartDate -> bookEndDate], cùng phòng họp, trùng giờ
+    // Kiểm tra trùng lịch
     const isConflict = bookings.some(b => {
       if (b.roomId !== modalRoomId || b.status === 'cancelled' || b.status === 'rejected') return false;
 
       const bStart = b.date;
       const bEnd = b.endDate || b.date;
 
-      // Kiểm tra 2 dải ngày có giao nhau không
       const dateOverlap = !(bookEndDate < bStart || bookStartDate > bEnd);
       if (!dateOverlap) return false;
 
-      // Kiểm tra khung giờ có đụng nhau không
       const timeOverlap = (
         (bookStartTime >= b.startTime && bookStartTime < b.endTime) ||
         (bookEndTime > b.startTime && bookEndTime <= b.endTime) ||
@@ -221,7 +214,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       endTime: bookEndTime,
       participantsCount: Number(bookParticipants),
       equipmentsNeeded: selectedEquipments,
-      // LƯU THÔNG TIN THỨC ĂN NẾU CÓ CHỌN
       catering: hasCatering ? {
         hasCatering: true,
         costCenterCode: cateringCostCenter.trim(),
@@ -247,10 +239,11 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     setBookEmpCode('');
     setBookEmpName('');
     setBookDept('');
+    setHasCatering(false);
     alert('✅ Đã gửi yêu cầu đặt phòng thành công! Cuộc họp đang ở trạng thái CHỜ XÁC NHẬN từ chị Mỹ Duyên hoặc anh Yai.');
   };
 
-  // HÀM PHÊ DUYỆT ĐẶT PHÒNG (Duyệt bởi duypt hoặc yaitp)
+  // HÀM PHÊ DUYỆT ĐẶT PHÒNG
   const handleApproveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setApproverError('');
@@ -269,7 +262,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
     const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + todayStr;
 
-    // 1. Tạo object booking đã duyệt
     const updatedBooking: RoomBooking = {
       ...approvingBooking,
       status: 'confirmed',
@@ -277,7 +269,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       approvedAt: nowStr
     };
 
-    // 2. Tạo object buổi họp bên Điểm danh
     const autoSession: TrainingSession = {
       id: `session_auto_${updatedBooking.id}`,
       title: updatedBooking.title,
@@ -291,7 +282,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       status: 'active'
     };
 
-    // 3. Cập nhật state giao diện máy hiện tại ngay lập tức
     setBookings(prev => prev.map(b => b.id === approvingBooking.id ? updatedBooking : b));
 
     if (setSessions) {
@@ -303,13 +293,11 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       });
     }
 
-    // 4. LƯU LÊN CLOUD FIREBASE (CHẠY SONG SONG ĐỘC LẬP - BẢO ĐẢM CẢ 2 ĐỀU ĐƯỢC ĐẨY LÊN)
     try {
       await Promise.all([
         saveRoomBookingToCloud(updatedBooking),
         saveTrainingSessionToCloud(autoSession)
       ]);
-      console.log('Đã đồng bộ trạng thái duyệt và buổi điểm danh lên Cloud thành công!');
     } catch (err) {
       console.error('Lỗi khi đẩy dữ liệu duyệt lên Cloud:', err);
     }
@@ -346,15 +334,14 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     }
   };
 
-  // LOGIC LỊCH THÁNG (Calendar Grid)
+  // LOGIC LỊCH THÁNG
   const monthNames = [
     'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
     'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
   ];
 
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay(); // 0 là CN, 1 là T2...
-  // Chuyển về chuẩn Thứ 2 = 0, CN = 6
+  const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
   const startOffset = (firstDayOfWeek + 6) % 7;
 
   const handlePrevMonth = () => {
@@ -448,6 +435,9 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               <span className="w-3 h-3 rounded-full bg-amber-400 shadow-xs"></span>
               <span className="font-semibold text-amber-800">Chờ Xác Nhận (Chưa Duyệt)</span>
             </div>
+            <div className="flex items-center gap-1.5 text-amber-900 font-bold">
+              <span>🍱 Có chuẩn bị thức ăn/nước uống</span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -508,27 +498,22 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
           {/* Lưới Lịch Tháng (Thứ 2 -> Chủ Nhật) */}
           <div className="grid grid-cols-7 gap-1 sm:gap-2">
-            {['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'].map((dayName, idx) => (
+            {['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'].map((dayName) => (
               <div key={dayName} className="text-center font-bold text-xs py-2 text-slate-500 bg-slate-50 rounded-lg">
                 {dayName}
               </div>
             ))}
 
-            {/* Các ô trống trước ngày 1 */}
             {Array.from({ length: startOffset }).map((_, i) => (
               <div key={'empty-' + i} className="min-h-[90px] sm:min-h-[115px] p-1 bg-slate-50/40 rounded-xl border border-dashed border-slate-200/60" />
             ))}
 
-            {/* Các ngày trong tháng */}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const dayNum = i + 1;
               const dateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
               const isTodayCell = dateString === todayStr;
-              
-              // KIỂM TRA NGÀY TRONG QUÁ KHỨ
               const isPastDate = dateString < todayStr;
 
-              // Lấy các cuộc họp trong ngày này
               const cellBookings = bookings.filter(b => 
                 b.roomId === selectedRoomId && 
                 b.status !== 'cancelled' && 
@@ -540,14 +525,13 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 <div
                   key={dateString}
                   onClick={() => {
-                    // Nếu ngày đã qua thì KHÔNG cho click mở đặt phòng nữa
                     if (isPastDate) return;
                     setSelectedDate(dateString);
                     setViewMode('list');
                   }}
                   className={`min-h-[95px] sm:min-h-[120px] p-1.5 sm:p-2 rounded-xl border transition-all flex flex-col justify-between ${
                     isPastDate
-                      ? 'bg-slate-100/70 border-slate-200 opacity-45 cursor-not-allowed select-none' // Làm xám mờ & khóa chuột
+                      ? 'bg-slate-100/70 border-slate-200 opacity-45 cursor-not-allowed select-none'
                       : isTodayCell
                       ? 'bg-blue-50/50 border-blue-400 ring-2 ring-blue-500/20 cursor-pointer hover:shadow-xs'
                       : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-xs cursor-pointer'
@@ -557,7 +541,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   <div className="flex items-center justify-between">
                     <span className={`text-xs font-black w-6 h-6 rounded-full flex items-center justify-center ${
                       isPastDate
-                        ? 'text-slate-400 bg-slate-200/50 line-through' // Gạch ngang số ngày quá khứ
+                        ? 'text-slate-400 bg-slate-200/50 line-through'
                         : isTodayCell 
                         ? 'bg-blue-600 text-white' 
                         : 'text-slate-800'
@@ -572,7 +556,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                     )}
                   </div>
 
-                  {/* Danh sách các cuộc họp mini trong ô ngày */}
+                  {/* Danh sách các cuộc họp mini */}
                   <div className="space-y-1 my-1 overflow-y-auto max-h-[70px] sm:max-h-[85px]">
                     {cellBookings.slice(0, 3).map(b => {
                       const isConfirmed = b.status === 'confirmed';
@@ -590,21 +574,28 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                           }`}
                         >
                           <div className="flex items-center justify-between font-mono text-[9px] font-bold">
-                          <div className="flex items-center gap-1">
-                            <span>{b.startTime}-{b.endTime}</span>
-                            {isMultiDay && <span className="text-purple-600 font-sans">📅 Nhiều ngày</span>}
-                          </div>
+                            <div className="flex items-center gap-1">
+                              <span>{b.startTime}-{b.endTime}</span>
+                              {isMultiDay && <span className="text-purple-600 font-sans">📅 Nhiều ngày</span>}
+                            </div>
 
-                          {/* BIỂU TƯỢNG NHẬN BIẾT CÓ ĐẶT THỨC ĂN */}
-                          {b.catering?.hasCatering && (
-                            <span className="text-xs" title="Có phiếu chuẩn bị thức ăn & nước uống">
-                              🍱
-                            </span>
-                          )}
+                            {/* BIỂU TƯỢNG ĐẶT THỨC ĂN */}
+                            {b.catering?.hasCatering && (
+                              <span className="text-xs" title="Có phiếu chuẩn bị thức ăn & nước uống">
+                                🍱
+                              </span>
+                            )}
+                          </div>
+                          <div className="truncate font-bold">{b.title}</div>
                         </div>
-                        <div className="truncate font-bold">{b.title}</div>
                       );
                     })}
+
+                    {cellBookings.length > 3 && (
+                      <div className="text-[9px] text-slate-500 font-bold text-center">
+                        + {cellBookings.length - 3} cuộc khác
+                      </div>
+                    )}
                   </div>
 
                   {cellBookings.length === 0 && (
@@ -619,7 +610,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
         </div>
       )}
 
-      {/* ================= GIAO DIỆN 2: CHI TIẾT THEO NGÀY (CÓ NÚT DUYỆT BỞI MỸ DUYÊN / YAI) ================= */}
+      {/* ================= GIAO DIỆN 2: CHI TIẾT THEO NGÀY ================= */}
       {viewMode === 'list' && (
         <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
@@ -710,6 +701,8 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                           <span><strong>Bộ phận:</strong> {booking.department}</span>
                           <span><strong>Số người:</strong> {booking.participantsCount}</span>
                         </div>
+
+                        {/* KHUNG HIỂN THỊ THÔNG TIN PHIẾU THỨC ĂN (NẾU CÓ) */}
                         {booking.catering?.hasCatering && (
                           <div className="mt-2 p-2.5 rounded-xl bg-amber-50/90 border border-amber-200 text-xs text-amber-950 space-y-1 animate-in fade-in">
                             <div className="flex items-center gap-1.5 font-black text-amber-900">
@@ -731,7 +724,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
                       {/* Nút thao tác: Duyệt & Hủy */}
                       <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end border-t md:border-t-0 pt-2 md:pt-0 border-slate-200">
-                        {/* NÚT DUYỆT (CHỈ HIỆN KHI CHƯA DUYỆT) */}
                         {isPending && (
                           <button
                             onClick={() => {
@@ -763,7 +755,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
         </div>
       )}
 
-      {/* ================= MODAL 1: ĐẶT PHÒNG HỌP (CÓ TỪ NGÀY -> ĐẾN NGÀY) ================= */}
+      {/* ================= MODAL 1: ĐẶT PHÒNG HỌP ================= */}
       {showBookingModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto text-slate-900">
@@ -816,7 +808,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 />
               </div>
 
-              {/* Ô NGƯỜI HỌP / CHỦ TRÌ (BỔ SUNG THEO YÊU CẦU) */}
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
                   Người Họp / Chủ Trì Cuộc Họp <span className="text-rose-500">*</span>
@@ -850,7 +841,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   required
                   value={bookEmpCode}
                   onChange={(e) => handleEmpCodeChange(e.target.value)}
-                  placeholder="Nhập hoặc quét mã thẻ nhân viên..."
+                  placeholder="Nhập đủ 9 chữ số mã thẻ của bạn..."
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -878,7 +869,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 </div>
               </div>
 
-              {/* CHỌN TỪ NGÀY -> ĐẾN NGÀY (HỖ TRỢ MƯỢN NHIỀU NGÀY) */}
+              {/* CHỌN TỪ NGÀY -> ĐẾN NGÀY */}
               <div className="grid grid-cols-2 gap-2 p-2.5 bg-blue-50/60 border border-blue-200 rounded-xl">
                 <div>
                   <label className="block text-blue-900 mb-1 font-bold">Từ Ngày</label>
@@ -942,6 +933,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 />
               </div>
 
+              {/* NÚT TÙY CHỌN: CHUẨN BỊ THỨC ĂN / NƯỚC UỐNG */}
               <div className="pt-1 border-t border-slate-200">
                 <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
@@ -972,7 +964,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   </button>
                 </div>
               </div>
-              
+
               <div className="flex gap-2 pt-3">
                 <button
                   type="button"
@@ -1075,14 +1067,11 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
           </div>
         </div>
       )}
-    </div>
-  );
-};
-{/* ================= MODAL 3: PHIẾU BÁO CHUẨN BỊ THỨC ĂN (F&B) ================= */}
+
+      {/* ================= MODAL 3: PHIẾU BÁO CHUẨN BỊ THỨC ĂN (F&B) ================= */}
       {showCateringModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-white border border-slate-200 rounded-3xl p-5 w-full max-w-md shadow-2xl space-y-4 text-slate-900 max-h-[90vh] overflow-y-auto">
-            {/* Header popup */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <span className="text-xl">🍱</span>
@@ -1105,7 +1094,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
             </div>
 
             <div className="space-y-3.5 text-xs">
-              {/* Mã bộ phận / Cost Center */}
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
                   Mã Bộ Phận / Cost Center Code (10 số)
@@ -1119,7 +1107,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 />
               </div>
 
-              {/* Loại thức ăn */}
               <div>
                 <label className="block text-slate-700 mb-1.5 font-bold">
                   Loại Yêu Cầu Chuẩn Bị:
@@ -1153,7 +1140,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 </div>
               </div>
 
-              {/* Thức uống: Coffee & Water */}
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
                   Nước Uống Kèm Theo:
@@ -1181,7 +1167,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 </div>
               </div>
 
-              {/* Ngày & Giờ chuẩn bị mang vào phòng */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-slate-700 mb-1 font-bold">Ngày Chuẩn Bị</label>
@@ -1203,7 +1188,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 </div>
               </div>
 
-              {/* Địa điểm & Chi phí dự kiến */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-slate-700 mb-1 font-bold">Địa Điểm Chuẩn Bị</label>
@@ -1227,7 +1211,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 </div>
               </div>
 
-              {/* Action buttons */}
               <div className="flex gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
@@ -1254,3 +1237,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
           </div>
         </div>
       )}
+    </div>
+  );
+};
