@@ -91,6 +91,19 @@ export interface MeetingRoom {
   imageUrl?: string;
 }
 
+export interface CateringRequest {
+  hasCatering: boolean;
+  costCenterCode?: string;       // Mã bộ phận / Cost Center (VD: 1500250100)
+  cateringType?: 'lunch' | 'snack' | 'both'; // Buổi trưa / Ăn giữa buổi
+  hasCoffee?: boolean;           // Có Cafe
+  hasWater?: boolean;            // Có Nước suối
+  prepDate?: string;             // Ngày chuẩn bị
+  prepTime?: string;             // Giờ chuẩn bị
+  location?: string;             // Địa điểm chuẩn bị
+  estimatedCost?: string;        // Chi phí dự kiến (VNĐ)
+  note?: string;                 // Ghi chú thêm
+}
+
 export interface RoomBooking {
   id: string;
   roomId: string;
@@ -107,9 +120,12 @@ export interface RoomBooking {
   endTime: string;    // HH:mm
   participantsCount: number;
   equipmentsNeeded: string[];
+  catering?: CateringRequest;
   status: 'pending' | 'confirmed' | 'cancelled' | 'rejected'; // pending: Chờ duyệt, confirmed: Đã duyệt
   approvedBy?: string; // Tên người duyệt (duypt / yaitp)
   approvedAt?: string; // Thời gian duyệt
+  checkedInAt?: string;
+  checkedOutAt?: string;
   createdAt: string;
 }
 
