@@ -84,6 +84,18 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
   const [selectedEquipments, setSelectedEquipments] = useState<string[]>(['Máy chiếu 4K Ultra HD', 'Bảng kính']);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // States cho tính năng chuẩn bị thức ăn / nước uống (F&B)
+  const [hasCatering, setHasCatering] = useState(false);
+  const [showCateringModal, setShowCateringModal] = useState(false);
+  const [cateringCostCenter, setCateringCostCenter] = useState('');
+  const [cateringType, setCateringType] = useState<'snack' | 'lunch' | 'both'>('snack');
+  const [cateringCoffee, setCateringCoffee] = useState(true);
+  const [cateringWater, setCateringWater] = useState(true);
+  const [cateringPrepDate, setCateringPrepDate] = useState(todayStr);
+  const [cateringPrepTime, setCateringPrepTime] = useState('09:30');
+  const [cateringCost, setCateringCost] = useState('');
+  const [cateringLocation, setCateringLocation] = useState('');
+  
   // Popup duyệt đăng nhập
   const [approvingBooking, setApprovingBooking] = useState<RoomBooking | null>(null);
   const [approverUser, setApproverUser] = useState('');
@@ -101,6 +113,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       setBookDept(found.Department_Eng);
       if (!bookHostName) setBookHostName(name);
       if (found.Phone) setBookPhone(found.Phone);
+      if (found.Cost_Center) setCateringCostCenter(found.Cost_Center);
     }
   };
 
@@ -208,7 +221,19 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       endTime: bookEndTime,
       participantsCount: Number(bookParticipants),
       equipmentsNeeded: selectedEquipments,
-      status: 'pending', // Chờ duyệt
+      // LƯU THÔNG TIN THỨC ĂN NẾU CÓ CHỌN
+      catering: hasCatering ? {
+        hasCatering: true,
+        costCenterCode: cateringCostCenter.trim(),
+        cateringType: cateringType,
+        hasCoffee: cateringCoffee,
+        hasWater: cateringWater,
+        prepDate: cateringPrepDate || bookStartDate,
+        prepTime: cateringPrepTime || bookStartTime,
+        location: cateringLocation || roomObj?.name || 'Phòng họp',
+        estimatedCost: cateringCost.trim()
+      } : undefined,
+      status: 'pending',
       createdAt: new Date().toISOString()
     };
 
@@ -564,12 +589,20 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                               : 'bg-amber-50 text-amber-900 border-amber-200 animate-pulse'
                           }`}
                         >
-                          <div className="flex items-center gap-1 font-mono text-[9px] font-bold">
+                          <div className="flex items-center justify-between font-mono text-[9px] font-bold">
+                          <div className="flex items-center gap-1">
                             <span>{b.startTime}-{b.endTime}</span>
                             {isMultiDay && <span className="text-purple-600 font-sans">📅 Nhiều ngày</span>}
                           </div>
-                          <div className="truncate font-bold">{b.title}</div>
+
+                          {/* BIỂU TƯỢNG NHẬN BIẾT CÓ ĐẶT THỨC ĂN */}
+                          {b.catering?.hasCatering && (
+                            <span className="text-xs" title="Có phiếu chuẩn bị thức ăn & nước uống">
+                              🍱
+                            </span>
+                          )}
                         </div>
+                        <div className="truncate font-bold">{b.title}</div>
                       );
                     })}
                   </div>
@@ -677,6 +710,23 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                           <span><strong>Bộ phận:</strong> {booking.department}</span>
                           <span><strong>Số người:</strong> {booking.participantsCount}</span>
                         </div>
+                        {booking.catering?.hasCatering && (
+                          <div className="mt-2 p-2.5 rounded-xl bg-amber-50/90 border border-amber-200 text-xs text-amber-950 space-y-1 animate-in fade-in">
+                            <div className="flex items-center gap-1.5 font-black text-amber-900">
+                              <span>🍱 Phiếu Chuẩn Bị Thức Ăn & Nước Uống (F&B):</span>
+                              <span className="text-[10px] px-2 py-0.2 rounded-full bg-amber-200 text-amber-900">
+                                {booking.catering.cateringType === 'lunch' ? 'Buổi trưa' : booking.catering.cateringType === 'both' ? 'Trưa & Giữa buổi' : 'Ăn giữa buổi (Snack)'}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-amber-800">
+                              <span><strong>Thức uống:</strong> {[booking.catering.hasCoffee && '☕ Cà phê', booking.catering.hasWater && '💧 Nước suối'].filter(Boolean).join(', ') || 'Không'}</span>
+                              <span><strong>Thời gian mang vào:</strong> {booking.catering.prepTime} ({booking.catering.prepDate})</span>
+                              {booking.catering.costCenterCode && <span><strong>Cost Center:</strong> {booking.catering.costCenterCode}</span>}
+                              {booking.catering.estimatedCost && <span><strong>Chi phí dự kiến:</strong> {booking.catering.estimatedCost} VNĐ</span>}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Nút thao tác: Duyệt & Hủy */}
@@ -892,6 +942,37 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 />
               </div>
 
+              <div className="pt-1 border-t border-slate-200">
+                <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-lg">🍱</span>
+                    <div className="truncate">
+                      <p className="text-xs font-black text-amber-950">Chuẩn Bị Thức Ăn & Nước Uống</p>
+                      <p className="text-[11px] text-amber-700 truncate">
+                        {hasCatering ? '✓ Đã thiết lập phiếu chuẩn bị F&B' : 'Phiếu báo thức ăn/nước uống phòng họp'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCateringPrepDate(bookStartDate);
+                      setCateringPrepTime(bookStartTime);
+                      setCateringLocation(PRESET_ROOMS.find(r => r.id === modalRoomId)?.name || '');
+                      setShowCateringModal(true);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shadow-2xs shrink-0 ${
+                      hasCatering
+                        ? 'bg-amber-600 text-white hover:bg-amber-700'
+                        : 'bg-white text-amber-900 border border-amber-300 hover:bg-amber-100'
+                    }`}
+                  >
+                    {hasCatering ? 'Sửa Phiếu ✏️' : '+ Điền Phiếu F&B'}
+                  </button>
+                </div>
+              </div>
+              
               <div className="flex gap-2 pt-3">
                 <button
                   type="button"
@@ -997,3 +1078,179 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     </div>
   );
 };
+{/* ================= MODAL 3: PHIẾU BÁO CHUẨN BỊ THỨC ĂN (F&B) ================= */}
+      {showCateringModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-3xl p-5 w-full max-w-md shadow-2xl space-y-4 text-slate-900 max-h-[90vh] overflow-y-auto">
+            {/* Header popup */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🍱</span>
+                <div>
+                  <h3 className="font-extrabold text-sm text-slate-900">
+                    Phiếu Báo Chuẩn Bị Thức Ăn Phòng Họp
+                  </h3>
+                  <p className="text-[10px] text-slate-500 font-thai">
+                    ใบแจ้งขอจัดอาหาร / จัดอาหารว่างในการประชุม
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCateringModal(false)}
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              {/* Mã bộ phận / Cost Center */}
+              <div>
+                <label className="block text-slate-700 mb-1 font-bold">
+                  Mã Bộ Phận / Cost Center Code (10 số)
+                </label>
+                <input
+                  type="text"
+                  value={cateringCostCenter}
+                  onChange={(e) => setCateringCostCenter(e.target.value)}
+                  placeholder="VD: 1500250100"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              {/* Loại thức ăn */}
+              <div>
+                <label className="block text-slate-700 mb-1.5 font-bold">
+                  Loại Yêu Cầu Chuẩn Bị:
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCateringType('snack')}
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                      cateringType === 'snack'
+                        ? 'bg-amber-100 border-amber-400 font-bold text-amber-950'
+                        : 'bg-white border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <p className="font-bold">☕ Ăn Giữa Buổi</p>
+                    <p className="text-[10px] text-slate-500 font-thai">จัดอาหารว่าง</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCateringType('lunch')}
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                      cateringType === 'lunch'
+                        ? 'bg-amber-100 border-amber-400 font-bold text-amber-950'
+                        : 'bg-white border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <p className="font-bold">🍱 Chuẩn Bị Buổi Trưa</p>
+                    <p className="text-[10px] text-slate-500 font-thai">จัดอาหารกลางวัน</p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Thức uống: Coffee & Water */}
+              <div>
+                <label className="block text-slate-700 mb-1 font-bold">
+                  Nước Uống Kèm Theo:
+                </label>
+                <div className="flex items-center gap-4 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                  <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={cateringCoffee}
+                      onChange={(e) => setCateringCoffee(e.target.checked)}
+                      className="w-4 h-4 text-amber-600 rounded"
+                    />
+                    <span>☕ Coffee (Cà phê)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={cateringWater}
+                      onChange={(e) => setCateringWater(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 rounded"
+                    />
+                    <span>💧 Water (Nước suối)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Ngày & Giờ chuẩn bị mang vào phòng */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-700 mb-1 font-bold">Ngày Chuẩn Bị</label>
+                  <input
+                    type="date"
+                    value={cateringPrepDate}
+                    onChange={(e) => setCateringPrepDate(e.target.value)}
+                    className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 mb-1 font-bold">Giờ Mang Đồ Vào</label>
+                  <input
+                    type="time"
+                    value={cateringPrepTime}
+                    onChange={(e) => setCateringPrepTime(e.target.value)}
+                    className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold"
+                  />
+                </div>
+              </div>
+
+              {/* Địa điểm & Chi phí dự kiến */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-700 mb-1 font-bold">Địa Điểm Chuẩn Bị</label>
+                  <input
+                    type="text"
+                    value={cateringLocation}
+                    onChange={(e) => setCateringLocation(e.target.value)}
+                    placeholder="VD: Phòng Vịnh Hạ Long"
+                    className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 mb-1 font-bold">Chi Phí Dự Kiến (VNĐ)</label>
+                  <input
+                    type="text"
+                    value={cateringCost}
+                    onChange={(e) => setCateringCost(e.target.value)}
+                    placeholder="VD: 350.000"
+                    className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHasCatering(false);
+                    setShowCateringModal(false);
+                  }}
+                  className="px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl font-bold transition-colors"
+                >
+                  Xóa Phiếu Này
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHasCatering(true);
+                    setShowCateringModal(false);
+                  }}
+                  className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black transition-all shadow-sm"
+                >
+                  Lưu Phiếu Chuẩn Bị
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
