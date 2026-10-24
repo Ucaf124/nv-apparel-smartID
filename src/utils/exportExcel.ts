@@ -14,16 +14,16 @@ export function exportAttendanceToExcel(session: TrainingSession, records: Atten
     'Phòng Ban': r.department,
     'Nhà Máy / Xưởng': r.factory,
     'Chức Vụ': r.position,
+    'Đợt Điểm Danh': r.attendanceShift || 'Ca Sáng', // Hiển thị rõ Ca Sáng / Ca Chiều
     'Giờ Điểm Danh': r.scanTime,
     'Ngày': r.date,
-    'Phương Thức': r.method === 'camera_scan' ? 'Quét Barcode Thẻ' : 'Nhập Mã Bằng Tay',
-    'Chữ Ký Điện Tử': 'ĐÃ XÁC THỰC MÃ VẠCH THẺ'
+    'Phương Thức': r.method === 'photo_scan' ? 'Chụp/Tải Ảnh Thẻ' : r.method === 'manual_entry' ? 'Nhập Mã Số' : 'Quét Camera Barcode',
+    'Xác Thực': 'HỢP LỆ (ĐÃ QUÉT BARCODE THẺ)'
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(data);
   const workbook = XLSX.utils.book_new();
   
-  // Set column widths
   worksheet['!cols'] = [
     { wch: 6 },
     { wch: 15 },
@@ -31,9 +31,10 @@ export function exportAttendanceToExcel(session: TrainingSession, records: Atten
     { wch: 22 },
     { wch: 16 },
     { wch: 25 },
+    { wch: 18 }, // Đợt điểm danh
     { wch: 14 },
     { wch: 12 },
-    { wch: 20 },
+    { wch: 22 },
     { wch: 26 },
   ];
 
