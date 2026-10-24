@@ -48,6 +48,7 @@ export function exportAttendanceToExcel(session: TrainingSession, records: Atten
 export function exportDepartmentPassToExcel(passes: DepartmentPassRecord[]) {
   const data = passes.map((p, index) => ({
     'STT': index + 1,
+    'Nhà Máy (Chốt Quẹt)': p.factoryCheckPoint || 'NV1', // Cột nhà máy mới
     'Mã Nhân Viên': p.employeeCode,
     'Họ và Tên': p.employeeName,
     'Bộ Phận Gốc': p.employeeDepartment,
@@ -57,9 +58,9 @@ export function exportDepartmentPassToExcel(passes: DepartmentPassRecord[]) {
     'Lý Do Di Chuyển': p.reason,
     'Thời Gian Vào': p.timestamp,
     'Ngày Vào': p.date,
-    'Thời Gian Ra': p.returnTime || 'Chưa về',
+    'Thời Gian Ra': p.returnTime || 'Chưa Check-Out',
     'Ngày Ra': p.returnDate || (p.returnTime ? p.date : '-'),
-    'Trạng Thái': p.status === 'active' ? 'Đang ở xưởng' : 'Đã về'
+    'Trạng Thái': p.status === 'active' ? 'Chưa Check-Out' : 'Đã về'
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(data);
@@ -67,6 +68,7 @@ export function exportDepartmentPassToExcel(passes: DepartmentPassRecord[]) {
 
   worksheet['!cols'] = [
     { wch: 6 },
+    { wch: 18 }, // Nhà máy
     { wch: 15 },
     { wch: 24 },
     { wch: 20 },
@@ -78,7 +80,7 @@ export function exportDepartmentPassToExcel(passes: DepartmentPassRecord[]) {
     { wch: 12 },
     { wch: 15 },
     { wch: 12 },
-    { wch: 14 }
+    { wch: 16 }
   ];
 
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Nhat_Ky_Ra_Vao');
