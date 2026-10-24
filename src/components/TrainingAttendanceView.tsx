@@ -55,6 +55,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
   // Form state for creating new session
   const [newTitle, setNewTitle] = useState('');
   const [newInstructor, setNewInstructor] = useState('');
+  const [newInstructorCode, setNewInstructorCode] = useState('');
   const [customTypeName, setCustomTypeName] = useState('');
   const [newLocation, setNewLocation] = useState('Phòng Họp Vịnh Hạ Long');
   const [selectedLocationType, setSelectedLocationType] = useState('Phòng Họp Vịnh Hạ Long');
@@ -75,6 +76,69 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     return matchSearch && matchDept;
   });
 
+  // HÀM BẬT / TẮT KHÓA ĐIỂM DANH (BẢO MẬT: BẮT BUỘC NHẬP MÃ THẺ GIẢNG VIÊN HOẶC PASS 8888)
+  const handleToggleAttendanceOpen = async (session: TrainingSession) => {
+    const isCurrentlyOpen = session.isAttendanceOpen ?? false;
+    const actionText = isCurrentlyOpen ? 'KHÓA (KẾT THÚC) ĐIỂM DANH' : 'MỞ KHÓA ĐIỂM DANH';
+
+    const promptInput = prompt(
+      `🔐 BẢO MẬT ${actionText}\n\nBuổi họp: "${session.title}"\nNgười chủ trì: ${session.instructor}\n\nĐể ${actionText.toLowerCase()}, vui lòng nhập MÃ THẺ của Người chủ trì hoặc Mật khẩu Quản trị (8888):`
+    );
+
+    if (promptInput === null) return; // Người dùng bấm Hủy
+
+    const cleanInput = promptInput.trim().toLowerCase();
+    
+    // Kiểm tra: Trùng mã thẻ giảng viên (nếu có lưu) HOẶC trùng pass admin 8888
+    const isInstructor = session.instructorCode 
+      ? cleanInput === session.instructorCode.trim().toLowerCase()
+      : false;
+    const isAdmin = cleanInput === '8888';
+
+    // Nếu lúc tạo chưa có instructorCode thì cho phép tìm theo tên trong danh sách nhân sự
+    let isMatchedByName = false;
+    if (!isInstructor && !isAdmin) {
+      const foundEmp = employees.find(e => e.Employee_Code.trim().toLowerCase() === cleanInput);
+      if (foundEmp) {
+        const empFullName = (foundEmp.Full_Name || `${foundEmp.Name} ${foundEmp.Surname}`).trim().toLowerCase();
+        if (empFullName.includes(session.instructor.trim().toLowerCase()) || session.instructor.trim().toLowerCase().includes(empFullName)) {
+          isMatchedByName = true;
+        }
+      }
+    }
+
+    if (!isInstructor && !isAdmin && !isMatchedByName) {
+      soundFX.playError();
+      alert('❌ XÁC THỰC THẤT BẠI!\n\nBạn không phải là Người chủ trì / Giảng viên của buổi này và không có quyền Mở/Khóa điểm danh.');
+      return;
+    }
+
+    const nextState = !isCurrentlyOpen;
+    const updatedSession: TrainingSession = {
+      ...session,
+      isAttendanceOpen: nextState
+    };
+
+    setSessions(prev => prev.map(s => s.id === session.id ? updatedSession : s));
+    await saveTrainingSessionToCloud(updatedSession);
+
+    soundFX.playScanSuccess();
+    alert(nextState 
+      ? `🟢 ĐÃ MỞ ĐIỂM DANH THÀNH CÔNG!\nBây giờ công nhân viên có thể quét mã vạch thẻ để điểm danh [${session.currentShift || 'Ca Sáng'}].`
+      : `🔒 ĐÃ KHÓA ĐIỂM DANH!\nHệ thống đã ngừng nhận điểm danh cho buổi này.`
+    );
+  };
+
+  // HÀM CHUYỂN ĐỔI ĐỢT ĐIỂM DANH (CA SÁNG / CA CHIỀU)
+  const handleChangeShift = async (session: TrainingSession, newShift: string) => {
+    const updatedSession: TrainingSession = {
+      ...session,
+      currentShift: newShift
+    };
+    setSessions(prev => prev.map(s => s.id === session.id ? updatedSession : s));
+    await saveTrainingSessionToCloud(updatedSession);
+    soundFX.playScanSuccess();
+  };
   const handleCreateSession = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
@@ -124,12 +188,15 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
       id: `session_${Date.now()}`,
       title: newTitle.trim(),
       instructor: newInstructor.trim() || 'Ban Đào Tạo & Nhân Sự',
+      instructorCode: newInstructorCode.trim(), 
       location: finalLocation,
       date: newDate,
       startTime: newStartTime,
       endTime: newEndTime,
-      type: finalType, // Lưu đúng tên phân loại vừa nhập
+      type: finalType,
       customTypeName: newType === 'other' ? customTypeName.trim() : undefined,
+      isAttendanceOpen: false, 
+      currentShift: 'Ca Sáng', 
       createdAt: new Date().toISOString(),
       status: 'active'
     };
@@ -305,14 +372,67 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
               </div>
             </div>
 
-            {/* Big Action Button for Mobile Phone Camera Scanning */}
-            <div className="w-full md:w-auto shrink-0">
+            {/* KHU VỰC ĐIỀU KHIỂN ĐIỂM DANH & NÚT ON / OFF */}
+            <div className="w-full md:w-auto shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+              {/* CÔNG TẮC BẬT / TẮT (ON / OFF) MỞ KHÓA ĐIỂM DANH */}
+              <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-500 uppercase mb-1">
+                  Trạng thái điểm danh
+                </span>
+                
+                <button
+                  type="button"
+                  onClick={() => handleToggleAttendanceOpen(currentSession)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all shadow-xs ${
+                    currentSession.isAttendanceOpen
+                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-400 animate-pulse'
+                      : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                  }`}
+                  title="Bấm để Mở/Khóa điểm danh (Cần mã thẻ giảng viên)"
+                >
+                  <span className={`w-2 h-2 rounded-full ${currentSession.isAttendanceOpen ? 'bg-white' : 'bg-rose-500'}`}></span>
+                  <span>{currentSession.isAttendanceOpen ? 'ĐANG MỞ (ON)' : 'ĐÃ KHÓA (OFF)'}</span>
+                </button>
+              </div>
+
+              {/* CHỌN ĐỢT ĐIỂM DANH (CA SÁNG / CA CHIỀU) */}
+              <div className="flex flex-col p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-500 uppercase mb-1">
+                  Đợt điểm danh
+                </span>
+                <select
+                  value={currentSession.currentShift || 'Ca Sáng'}
+                  onChange={(e) => handleChangeShift(currentSession, e.target.value)}
+                  className="px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-lg text-xs font-extrabold text-blue-900 focus:outline-none cursor-pointer"
+                >
+                  <option value="Ca Sáng">☀️ Ca Sáng (Đợt 1)</option>
+                  <option value="Ca Chiều">🌤️ Ca Chiều (Đợt 2)</option>
+                  <option value="Ca Tối">🌙 Ca Tối / Tăng Ca</option>
+                  <option value="Ngày 2 - Sáng">📅 Ngày 2 - Sáng</option>
+                  <option value="Ngày 2 - Chiều">📅 Ngày 2 - Chiều</option>
+                </select>
+              </div>
+
+              {/* NÚT QUÉT BARCODE THẺ (SẼ BỊ KHÓA NẾU ĐANG OFF) */}
               <button
-                onClick={() => onOpenScanner(currentSession.id)}
-                className="w-full md:w-auto px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-md shadow-blue-500/25 transition-all"
+                type="button"
+                onClick={() => {
+                  if (!currentSession.isAttendanceOpen) {
+                    soundFX.playError();
+                    alert(`🔒 ĐIỂM DANH ĐANG BỊ KHÓA!\n\nNgười chủ trì (${currentSession.instructor}) chưa bật mở điểm danh.\nVui lòng bấm vào nút [ĐÃ KHÓA (OFF)] bên cạnh để mở khóa trước khi quét thẻ!`);
+                    return;
+                  }
+                  onOpenScanner(currentSession.id);
+                }}
+                className={`px-5 py-3.5 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-98 ${
+                  currentSession.isAttendanceOpen
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/25 cursor-pointer'
+                    : 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                }`}
+                title={currentSession.isAttendanceOpen ? 'Bấm để mở camera quét mã thẻ' : 'Điểm danh đang bị khóa bởi Giảng viên'}
               >
                 <ScanLine className="w-5 h-5 animate-pulse" />
-                <span>QUÉT BARCODE THẺ</span>
+                <span>QUÉT THẺ [{currentSession.currentShift || 'Ca Sáng'}]</span>
               </button>
             </div>
           </div>
@@ -568,6 +688,11 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                       <td className="p-3 text-slate-600">
                         {r.position}
                       </td>
+                      <td className="p-3">
+                        <span className="px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-800 font-bold text-[11px] border border-blue-200">
+                          {r.attendanceShift || 'Ca Sáng'}
+                        </span>
+                      </td>
                       <td className="p-3 font-mono text-emerald-700 font-bold">
                         {r.scanTime}
                       </td>
@@ -664,15 +789,29 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
 
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
-                  Người Phụ Trách / Giảng Viên
+                  Người Phụ Trách / Giảng Viên <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={newInstructor}
-                  onChange={(e) => setNewInstructor(e.target.value)}
-                  placeholder="VD: Nguyễn Huỳnh Như Ngọc (Sewing Supervisor)"
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={newInstructor}
+                    onChange={(e) => setNewInstructor(e.target.value)}
+                    placeholder="Họ tên giảng viên"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium text-xs"
+                  />
+                  <input
+                    type="text"
+                    required
+                    value={newInstructorCode}
+                    onChange={(e) => setNewInstructorCode(e.target.value)}
+                    placeholder="Mã thẻ giảng viên"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-mono font-bold text-xs"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1 italic">
+                  * Giảng viên sẽ dùng Mã số thẻ này để BẬT/TẮT mở khóa điểm danh cho buổi học.
+                </p>
               </div>
 
               <div>
