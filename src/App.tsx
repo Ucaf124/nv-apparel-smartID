@@ -399,9 +399,20 @@ export default function App() {
     const empFactory = matchedEmployee?.Factory_Code || 'Factory 1';
     const empPosition = matchedEmployee?.Position_Eng || 'Công nhân viên';
 
-    // 1. Process Attendance (BẢO MẬT: BẮT BUỘC PHẢI LÀ CÔNG NHÂN VIÊN NV)
+    // 1. Process Attendance (CÓ KIỂM TRA KHÓA ON/OFF VÀ ĐỢT CA SÁNG / CA CHIỀU)
     if (scannerMode?.type === 'attendance') {
-      // KIỂM TRA MÃ CÓ NẰM TRONG DANH SÁCH 5.379 CÔNG NHÂN VIÊN KHÔNG
+      const sessionId = scannerMode.sessionId;
+      const targetSession = sessions.find(s => s.id === sessionId) || sessions[0];
+
+      // 1. KIỂM TRA TRẠNG THÁI KHÓA ON / OFF
+      if (targetSession && targetSession.isAttendanceOpen === false) {
+        soundFX.playError();
+        alert(`🔒 BUỔI ĐIỂM DANH ĐANG BỊ KHÓA!\n\nGiảng viên / Người chủ trì (${targetSession.instructor}) chưa bật mở điểm danh.\nVui lòng nhờ người chủ trì bấm nút MỞ ĐIỂM DANH (ON)!`);
+        setScannerOpen(false);
+        return;
+      }
+
+      // 2. KIỂM TRA MÃ CÔNG NHÂN VIÊN TRONG HỆ THỐNG
       const isExistInRoster = employees.some(
         e => e.Employee_Code.trim().toLowerCase() === code.toLowerCase()
       );
@@ -411,20 +422,23 @@ export default function App() {
         alert(
           `❌ TỪ CHỐI ĐIỂM DANH!\n\nMã thẻ "${code}" không tồn tại trong danh sách nhân sự nhà máy.\nBạn không phải công nhân viên của NV, không thể tham gia đào tạo!`
         );
-        return; // Chặn lại ngay lập tức, KHÔNG cho điểm danh
+        return;
       }
 
-      const sessionId = scannerMode.sessionId;
-      const targetSession = sessions.find(s => s.id === sessionId) || sessions[0];
+      // Đợt điểm danh hiện tại của buổi này (Mặc định là Ca Sáng nếu chưa chọn)
+      const currentShiftName = targetSession.currentShift || 'Ca Sáng';
 
-      // Kiểm tra trùng lặp
-      const alreadyChecked = attendanceRecords.some(
-        r => r.sessionId === targetSession.id && r.employeeCode.trim().toLowerCase() === code.trim().toLowerCase()
+      // 3. KIỂM TRA TRÙNG LẶP THEO ĐÚNG ĐỢT ĐIỂM DANH ĐÓ
+      const alreadyCheckedInThisShift = attendanceRecords.some(
+        r => r.sessionId === targetSession.id && 
+             r.employeeCode.trim().toLowerCase() === code.trim().toLowerCase() &&
+             (r.attendanceShift || 'Ca Sáng') === currentShiftName &&
+             r.date === dateStr
       );
 
-      if (alreadyChecked) {
+      if (alreadyCheckedInThisShift) {
         soundFX.playWarning();
-        showToast('warning', 'Đã điểm danh trước đó!', `${empName} (Mã: ${code}) đã có trong danh sách.`);
+        showToast('warning', 'Đã điểm danh đợt này rồi!', `${empName} (Mã: ${code}) đã có tên trong danh sách ${currentShiftName}.`);
         return;
       }
 
@@ -439,13 +453,14 @@ export default function App() {
         position: empPosition,
         scanTime: timeStr,
         date: dateStr,
+        attendanceShift: currentShiftName, // Lưu rõ: 'Ca Sáng' hoặc 'Ca Chiều'
         method: scanMethod
       };
 
       setAttendanceRecords(prev => [newRecord, ...prev]);
       saveAttendanceRecordToCloud(newRecord).catch(console.error);
       soundFX.playScanSuccess();
-      showToast('success', 'Điểm danh thành công!', `${empName} (${empPosition} • ${empDept}) lúc ${timeStr}`);
+      showToast('success', `Điểm danh [${currentShiftName}] thành công!`, `${empName} lúc ${timeStr}`);
       return;
     }
 
