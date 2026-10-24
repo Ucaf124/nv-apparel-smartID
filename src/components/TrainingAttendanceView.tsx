@@ -76,40 +76,54 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     return matchSearch && matchDept;
   });
 
-  // HÀM BẬT / TẮT KHÓA ĐIỂM DANH (BẢO MẬT: BẮT BUỘC NHẬP MÃ THẺ GIẢNG VIÊN HOẶC PASS 8888)
+  // HÀM BẬT / TẮT KHÓA ĐIỂM DANH (XÁC THỰC MÃ THẺ GIẢNG VIÊN THÔNG MINH)
   const handleToggleAttendanceOpen = async (session: TrainingSession) => {
     const isCurrentlyOpen = session.isAttendanceOpen ?? false;
     const actionText = isCurrentlyOpen ? 'KHÓA (KẾT THÚC) ĐIỂM DANH' : 'MỞ KHÓA ĐIỂM DANH';
 
     const promptInput = prompt(
-      `🔐 BẢO MẬT ${actionText}\n\nBuổi họp: "${session.title}"\nNgười chủ trì: ${session.instructor}\n\nĐể ${actionText.toLowerCase()}, vui lòng nhập MÃ THẺ của Người chủ trì cuộc họp:`
+      `🔐 BẢO MẬT ${actionText}\n\nBuổi họp: "${session.title}"\nNgười chủ trì: ${session.instructor}\n\nĐể ${actionText.toLowerCase()}, vui lòng nhập MÃ THẺ của Người chủ trì hoặc Mật khẩu Quản trị:`
     );
 
     if (promptInput === null) return; // Người dùng bấm Hủy
 
     const cleanInput = promptInput.trim().toLowerCase();
-    
-    // Kiểm tra: Trùng mã thẻ giảng viên (nếu có lưu) HOẶC trùng pass admin 8888
-    const isInstructor = session.instructorCode 
-      ? cleanInput === session.instructorCode.trim().toLowerCase()
-      : false;
     const isAdmin = cleanInput === '8888';
 
-    // Nếu lúc tạo chưa có instructorCode thì cho phép tìm theo tên trong danh sách nhân sự
-    let isMatchedByName = false;
-    if (!isInstructor && !isAdmin) {
-      const foundEmp = employees.find(e => e.Employee_Code.trim().toLowerCase() === cleanInput);
-      if (foundEmp) {
-        const empFullName = (foundEmp.Full_Name || `${foundEmp.Name} ${foundEmp.Surname}`).trim().toLowerCase();
-        if (empFullName.includes(session.instructor.trim().toLowerCase()) || session.instructor.trim().toLowerCase().includes(empFullName)) {
-          isMatchedByName = true;
+    let isAuthorized = isAdmin;
+
+    if (!isAuthorized) {
+      // 1. Kiểm tra nếu mã nhập trùng trực tiếp với instructorCode đã lưu
+      if (session.instructorCode && cleanInput === session.instructorCode.trim().toLowerCase()) {
+        isAuthorized = true;
+      } else {
+        // 2. Tra cứu mã thẻ trong danh sách 5.379 nhân sự xem có đúng là giảng viên không
+        const foundEmp = employees.find(
+          e => e.Employee_Code.trim().toLowerCase() === cleanInput
+        );
+
+        if (foundEmp) {
+          const empFullName = (foundEmp.Full_Name || `${foundEmp.Name} ${foundEmp.Surname}`).trim().toLowerCase();
+          const targetInstructor = session.instructor.trim().toLowerCase();
+
+          // Hàm bỏ dấu tiếng Việt để so sánh tên không bị lệch dấu
+          const removeAccents = (str: string) => 
+            str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+
+          const cleanEmpName = removeAccents(empFullName);
+          const cleanInstructor = removeAccents(targetInstructor);
+
+          // Nếu tên người nhập trùng khớp với tên người chủ trì -> HỢP LỆ!
+          if (cleanEmpName.includes(cleanInstructor) || cleanInstructor.includes(cleanEmpName)) {
+            isAuthorized = true;
+          }
         }
       }
     }
 
-    if (!isInstructor && !isAdmin && !isMatchedByName) {
+    if (!isAuthorized) {
       soundFX.playError();
-      alert('❌ XÁC THỰC THẤT BẠI!\n\nBạn không phải là Người chủ trì / Giảng viên của buổi này và không có quyền Mở/Khóa điểm danh.');
+      alert(`❌ XÁC THỰC THẤT BẠI!\n\nMã thẻ vừa nhập không trùng khớp với Người chủ trì (${session.instructor}).\nBạn không có quyền Mở/Khóa điểm danh cho buổi này.`);
       return;
     }
 
@@ -273,33 +287,63 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     }
   };
 
-  // HÀM ĐỔI CHỦ ĐỀ CHO RIÊNG ĐỢT ĐIỂM DANH NÀY (CA SÁNG / CA CHIỀU)
+  // HÀM ĐỔI CHỦ ĐỀ CHO RIÊNG ĐỢT ĐIỂM DANH (XÁC THỰC MÃ THẺ CHỦ TRÌ THÔNG MINH)
   const handleEditShiftTopic = async (session: TrainingSession) => {
     const shift = session.currentShift || 'Ca Sáng';
     const currentTopic = (session.shiftTopics && session.shiftTopics[shift]) || session.title;
 
-    // 1. Xác thực bảo mật: Phải là Người chủ trì hoặc Admin pass 8888
+    // 1. Popup nhập mã thẻ
     const promptPin = prompt(
-      `🔐 BẢO MẬT ĐỔI CHỦ ĐỀ [${shift}]\n\nNgười chủ trì: ${session.instructor}\nVui lòng nhập MÃ THẺ của Người chủ trì cuộc họp:`
+      `🔐 BẢO MẬT ĐỔI CHỦ ĐỀ [${shift}]\n\nChủ trì cuộc họp: "${session.instructor}"\n\nVui lòng nhập MÃ THẺ của Người chủ trì hoặc Mật khẩu Quản trị:`
     );
 
-    if (promptPin === null) return;
+    if (promptPin === null) return; // Bấm Cancel
 
     const cleanInput = promptPin.trim().toLowerCase();
-    const isInstructor = session.instructorCode 
-      ? cleanInput === session.instructorCode.trim().toLowerCase()
-      : false;
     const isAdmin = cleanInput === '8888';
 
-    if (!isInstructor && !isAdmin) {
+    // 2. Tìm kiếm nhân sự theo mã thẻ vừa gõ trong danh sách 5.379 người
+    let isAuthorized = isAdmin;
+
+    if (!isAuthorized) {
+      // Kiểm tra trùng trực tiếp mã thẻ đã lưu (nếu có)
+      if (session.instructorCode && cleanInput === session.instructorCode.trim().toLowerCase()) {
+        isAuthorized = true;
+      } else {
+        // Tìm thông tin người đang nhập mã trong danh sách nhân sự
+        const foundEmp = employees.find(
+          e => e.Employee_Code.trim().toLowerCase() === cleanInput
+        );
+
+        if (foundEmp) {
+          // Lấy họ tên chuẩn của người nhập mã
+          const empFullName = (foundEmp.Full_Name || `${foundEmp.Name} ${foundEmp.Surname}`).trim().toLowerCase();
+          const targetInstructor = session.instructor.trim().toLowerCase();
+
+          // Hàm phụ bỏ dấu tiếng Việt để so sánh chuẩn xác tuyệt đối
+          const removeAccents = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+
+          const cleanEmpName = removeAccents(empFullName);
+          const cleanInstructor = removeAccents(targetInstructor);
+
+          // Nếu tên người nhập chứa tên giảng viên hoặc ngược lại -> HỢP LỆ!
+          if (cleanEmpName.includes(cleanInstructor) || cleanInstructor.includes(cleanEmpName)) {
+            isAuthorized = true;
+          }
+        }
+      }
+    }
+
+    // 3. Nếu không khớp cả tên lẫn mã thẻ
+    if (!isAuthorized) {
       soundFX.playError();
-      alert('❌ Xác thực thất bại! Chỉ người chủ trì cuộc họp mới có quyền đổi chủ đề của ca học.');
+      alert(`❌ XÁC THỰC THẤT BẠI!\n\nMã thẻ vừa nhập không trùng khớp với Người chủ trì cuộc họp này (${session.instructor}).\nChỉ người chủ trì cuộc họp mới có quyền đổi chủ đề của ca họp.`);
       return;
     }
 
-    // 2. Nhập tên chủ đề mới cho ca này
+    // 4. Nhập tên chủ đề mới cho ca này
     const newTopicName = prompt(
-      `📝 ĐỔI CHỦ ĐỀ ĐÀO TẠO CHO [${shift}]:\n(Chủ đề ca trước vẫn được giữ nguyên độc lập)\n\nNhập tên chủ đề mới:`,
+      `📝 ĐỔI CHỦ ĐỀ ĐÀO TẠO CHO [${shift}]:\n(Chủ đề của ca trước vẫn được giữ nguyên độc lập)\n\nNhập tên chủ đề mới:`,
       currentTopic
     );
 
