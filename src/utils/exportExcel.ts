@@ -90,34 +90,42 @@ export function exportRoomBookingsToExcel(bookings: RoomBooking[]) {
   const data = bookings.map((b, index) => ({
     'STT': index + 1,
     'Phòng Họp': b.roomName,
-    'Tiêu Đề Cuộc Họp': b.title,
+    'Chủ Đề Cuộc Họp': b.title,
+    'Người Họp / Chủ Trì': b.hostName || b.bookedByName,
     'Người Đặt': b.bookedByName,
     'Mã Thẻ NV': b.bookedByCode,
     'Phòng Ban': b.department,
-    'Điện Thoại': b.phone || '-',
-    'Ngày Họp': b.date,
-    'Bắt Đầu': b.startTime,
-    'Kết Thúc': b.endTime,
+    'Từ Ngày': b.date,
+    'Đến Ngày': b.endDate || b.date,
+    'Từ Giờ': b.startTime,
+    'Đến Giờ': b.endTime,
     'Số Người': b.participantsCount,
-    'Thiết Bị': b.equipmentsNeeded.join(', '),
-    'Trạng Thái': b.status === 'checked_in' ? 'Đã nhận phòng' : b.status === 'confirmed' ? 'Đã xác nhận' : b.status
+    'Trạng Thái Duyệt': b.status === 'confirmed' ? `ĐÃ DUYỆT (${b.approvedBy || ''})` : b.status === 'pending' ? 'CHỜ DUYỆT' : b.status,
+    'Chuẩn Bị Thức Ăn (F&B)': b.catering?.hasCatering ? (b.catering.cateringType === 'lunch' ? 'Ăn trưa' : b.catering.cateringType === 'both' ? 'Ăn trưa & Giữa buổi' : 'Ăn giữa buổi') : 'Không',
+    'Nước Uống': b.catering?.hasCatering ? [b.catering.hasCoffee && 'Cà phê', b.catering.hasWater && 'Nước suối'].filter(Boolean).join(', ') : '-',
+    'Mã Cost Center': b.catering?.costCenterCode || '-',
+    'Chi Phí F&B': b.catering?.estimatedCost ? `${b.catering.estimatedCost} VNĐ` : '-'
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(data);
   const workbook = XLSX.utils.book_new();
   worksheet['!cols'] = [
     { wch: 6 },
-    { wch: 24 },
+    { wch: 25 },
     { wch: 30 },
     { wch: 22 },
-    { wch: 15 },
     { wch: 20 },
     { wch: 15 },
-    { wch: 12 },
+    { wch: 20 },
+    { wch: 13 },
+    { wch: 13 },
     { wch: 10 },
     { wch: 10 },
     { wch: 10 },
     { wch: 30 },
+    { wch: 24 },
+    { wch: 20 },
+    { wch: 16 },
     { wch: 16 }
   ];
 
