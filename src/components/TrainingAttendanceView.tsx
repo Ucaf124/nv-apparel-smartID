@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   ScanLine, 
   Plus, 
@@ -66,7 +66,18 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
   const [newEndTime, setNewEndTime] = useState('10:00');
 
   const currentSession = sessions.find(s => s.id === activeSessionId) || sessions[0];
-  const currentRecords = attendanceRecords.filter(r => r.sessionId === currentSession?.id);
+  
+  // Ca điểm danh hiện tại đang chọn trên banner (Mặc định là Ca Sáng nếu chưa có)
+  const activeShift = currentSession?.currentShift || 'Ca Sáng';
+
+  // CHỈ LẤY BẢN GHI ĐIỂM DANH THUỘC ĐÚNG CA ĐANG CHỌN NÀY
+  const currentRecords = useMemo(() => {
+    if (!currentSession) return [];
+    return attendanceRecords.filter(r => 
+      r.sessionId === currentSession.id && 
+      (r.attendanceShift || 'Ca Sáng') === activeShift
+    );
+  }, [attendanceRecords, currentSession, activeShift]);
 
   const filteredRecords = currentRecords.filter(r => {
     const matchSearch = r.employeeName.toLowerCase().includes(searchFilter.toLowerCase()) ||
@@ -706,8 +717,13 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
             </div>
             <p className="text-base font-bold text-slate-800">
               {currentRecords.length === 0 
-                ? 'Chưa có ai điểm danh cho buổi này' 
+                ? `Chưa có ai điểm danh cho [${activeShift}]` 
                 : 'Không tìm thấy kết quả phù hợp'}
+            </p>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+              {currentRecords.length === 0 
+                ? `Bấm mở khóa ON và bấm nút "QUÉT THẺ [${activeShift}]" để bắt đầu ghi nhận điểm danh cho ca này.` 
+                : 'Vui lòng thử tìm kiếm bằng từ khóa hoặc bộ phận khác.'}
             </p>
             <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
               Nhấn nút &ldquo;QUÉT BARCODE THẺ&rdquo; để quét mã vạch trên thẻ công nhân viên ghi nhận điểm danh tức thì.
