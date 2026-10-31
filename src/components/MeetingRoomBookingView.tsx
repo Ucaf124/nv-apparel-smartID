@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Employee, RoomBooking, TrainingSession, maskEmployeeCode } from '../types';
 import { PRESET_ROOMS } from '../data/mockEmployees';
-import { exportRoomBookingsToExcel } from '../utils/exportExcel';
+import { exportRoomBookingsToExcel, exportCateringReportToExcel } from '../utils/exportExcel';
 import { soundFX } from '../utils/audio';
 import { deleteRoomBookingInCloud, saveRoomBookingToCloud, saveTrainingSessionToCloud } from '../services/firebaseSync';
 
@@ -86,7 +86,9 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
   const [cateringCostCenter, setCateringCostCenter] = useState('');
   const [cateringType, setCateringType] = useState<'snack' | 'lunch' | 'both'>('snack');
   const [cateringCoffee, setCateringCoffee] = useState(true);
+  const [cateringCoffeeCount, setCateringCoffeeCount] = useState<number>(10);
   const [cateringWater, setCateringWater] = useState(true);
+  const [cateringWaterCount, setCateringWaterCount] = useState<number>(10);
   const [cateringPrepDate, setCateringPrepDate] = useState(todayStr);
   const [cateringPrepTime, setCateringPrepTime] = useState('09:30');
   const [cateringCost, setCateringCost] = useState('');
@@ -219,7 +221,9 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
         costCenterCode: cateringCostCenter.trim(),
         cateringType: cateringType,
         hasCoffee: cateringCoffee,
+        coffeeCount: cateringCoffee ? Number(cateringCoffeeCount) : 0,
         hasWater: cateringWater,
+        waterCount: cateringWater ? Number(cateringWaterCount) : 0,
         prepDate: cateringPrepDate || bookStartDate,
         prepTime: cateringPrepTime || bookStartTime,
         location: cateringLocation || roomObj?.name || 'Phòng họp',
@@ -264,6 +268,26 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
     soundFX.playScanSuccess();
     exportRoomBookingsToExcel(bookings);
+  };
+
+  // HÀM BẢO MẬT XUẤT EXCEL PHIẾU F&B
+  const handleExportCateringSecure = () => {
+    const cateringList = bookings.filter(b => b.catering?.hasCatering && b.status !== 'cancelled');
+    if (cateringList.length === 0) {
+      alert('Chưa có cuộc họp nào có phiếu yêu cầu chuẩn bị thức ăn/nước uống!');
+      return;
+    }
+
+    const pin = prompt('🔐 BẢO MẬT XUẤT PHIẾU F&B\n\nVui lòng nhập Mật khẩu Quản trị để tải báo cáo chuẩn bị thức ăn:');
+    if (pin === null) return;
+    if (pin.trim() !== '8888') {
+      soundFX.playError();
+      alert('❌ Mật khẩu quản trị không đúng!');
+      return;
+    }
+
+    soundFX.playScanSuccess();
+    exportCateringReportToExcel(bookings);
   };
   
   // HÀM PHÊ DUYỆT ĐẶT PHÒNG
@@ -436,6 +460,16 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               <span>Đặt Phòng Mới</span>
             </button>
 
+            <button
+              type="button"
+              onClick={handleExportCateringSecure}
+              className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+              title="Xuất danh sách chuẩn bị thức ăn & nước uống cho bộ phận Hành chính"
+            >
+              <span>🍱</span>
+              <span className="hidden sm:inline">Xuất Excel F&B</span>
+            </button>
+            
             <button
               type="button"
               onClick={handleExportBookingsSecure}
@@ -738,7 +772,12 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                             </div>
 
                             <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-amber-800">
-                              <span><strong>Thức uống:</strong> {[booking.catering.hasCoffee && '☕ Cà phê', booking.catering.hasWater && '💧 Nước suối'].filter(Boolean).join(', ') || 'Không'}</span>
+                              <span>
+                                <strong>Thức uống:</strong> {[
+                                  booking.catering.hasCoffee && `☕ Cà phê (${booking.catering.coffeeCount || 0} cốc)`,
+                                  booking.catering.hasWater && `💧 Nước suối (${booking.catering.waterCount || 0} chai)`
+                                ].filter(Boolean).join(', ') || 'Không'}
+                              </span>
                               <span><strong>Thời gian mang vào:</strong> {booking.catering.prepTime} ({booking.catering.prepDate})</span>
                               {booking.catering.costCenterCode && <span><strong>Cost Center:</strong> {booking.catering.costCenterCode}</span>}
                               {booking.catering.estimatedCost && <span><strong>Chi phí dự kiến:</strong> {booking.catering.estimatedCost} VNĐ</span>}
@@ -977,6 +1016,8 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                       setCateringPrepDate(bookStartDate);
                       setCateringPrepTime(bookStartTime);
                       setCateringLocation(PRESET_ROOMS.find(r => r.id === modalRoomId)?.name || '');
+                      if (!cateringCoffeeCount) setCateringCoffeeCount(Number(bookParticipants) || 10);
+                      if (!cateringWaterCount) setCateringWaterCount(Number(bookParticipants) || 10);
                       setShowCateringModal(true);
                     }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shadow-2xs shrink-0 ${
@@ -1166,29 +1207,62 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-slate-700 mb-1 font-bold">
-                  Nước Uống Kèm Theo:
+                <label className="block text-slate-700 mb-1.5 font-bold">
+                  Nước Uống Kèm Theo & Số Lượng:
                 </label>
-                <div className="flex items-center gap-4 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
-                  <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
-                    <input
-                      type="checkbox"
-                      checked={cateringCoffee}
-                      onChange={(e) => setCateringCoffee(e.target.checked)}
-                      className="w-4 h-4 text-amber-600 rounded"
-                    />
-                    <span>☕ Coffee (Cà phê)</span>
-                  </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                  
+                  <div className="space-y-1.5 p-2 bg-white rounded-lg border border-slate-200">
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={cateringCoffee}
+                        onChange={(e) => setCateringCoffee(e.target.checked)}
+                        className="w-4 h-4 text-amber-600 rounded"
+                      />
+                      <span>☕ Coffee (Cà phê)</span>
+                    </label>
 
-                  <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
-                    <input
-                      type="checkbox"
-                      checked={cateringWater}
-                      onChange={(e) => setCateringWater(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 rounded"
-                    />
-                    <span>💧 Water (Nước suối)</span>
-                  </label>
+                    {cateringCoffee && (
+                      <div className="flex items-center gap-1.5 pl-6">
+                        <span className="text-[11px] text-slate-500">Số cốc:</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max="200"
+                          value={cateringCoffeeCount}
+                          onChange={(e) => setCateringCoffeeCount(Number(e.target.value))}
+                          className="w-20 px-2 py-1 bg-amber-50 border border-amber-300 rounded font-bold text-xs text-amber-950 focus:outline-none"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 p-2 bg-white rounded-lg border border-slate-200">
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={cateringWater}
+                        onChange={(e) => setCateringWater(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 rounded"
+                      />
+                      <span>💧 Water (Nước suối)</span>
+                    </label>
+
+                    {cateringWater && (
+                      <div className="flex items-center gap-1.5 pl-6">
+                        <span className="text-[11px] text-slate-500">Số chai:</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max="200"
+                          value={cateringWaterCount}
+                          onChange={(e) => setCateringWaterCount(Number(e.target.value))}
+                          className="w-20 px-2 py-1 bg-blue-50 border border-blue-300 rounded font-bold text-xs text-blue-950 focus:outline-none"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
