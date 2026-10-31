@@ -291,3 +291,75 @@ export function parseEmployeesFromExcel(file: File): Promise<Employee[]> {
     reader.readAsBinaryString(file);
   });
 }
+
+export function exportCateringReportToExcel(bookings: RoomBooking[]) {
+  // Lọc chỉ những cuộc họp CÓ ĐẶT THỨC ĂN
+  const cateringBookings = bookings.filter(b => b.catering?.hasCatering && b.status !== 'cancelled' && b.status !== 'rejected');
+
+  if (cateringBookings.length === 0) {
+    alert('Không có cuộc họp nào có phiếu yêu cầu chuẩn bị thức ăn/nước uống!');
+    return;
+  }
+
+  const data = cateringBookings.map((b, index) => {
+    const c = b.catering!;
+    const typeText = c.cateringType === 'lunch' ? 'Chuẩn bị buổi trưa' : c.cateringType === 'both' ? 'Ăn trưa & Giữa buổi' : 'Ăn giữa buổi (Snack)';
+    
+    // Ghép số lượng nước uống
+    const drinksList: string[] = [];
+    if (c.hasCoffee && (c.coffeeCount || 0) > 0) drinksList.push(`Cà phê: ${c.coffeeCount} cốc`);
+    if (c.hasWater && (c.waterCount || 0) > 0) drinksList.push(`Nước suối: ${c.waterCount} chai`);
+    if (drinksList.length === 0) drinksList.push('Không yêu cầu');
+
+    return {
+      'STT': index + 1,
+      'Phòng Họp': b.roomName,
+      'Chủ Đề Họp': b.title,
+      'Người Chủ Trì': b.hostName || b.bookedByName,
+      'Người Đặt': b.bookedByName,
+      'Bộ Phận': b.department,
+      'Thời Gian Họp': `${b.startTime} - ${b.endTime}`,
+      'Ngày Họp': b.endDate && b.endDate !== b.date ? `${b.date} đến ${b.endDate}` : b.date,
+      'Số Người Họp': b.participantsCount,
+      'Cost Center Code': c.costCenterCode || '-',
+      'Loại Yêu Cầu': typeText,
+      'Nước Uống Kèm Theo': drinksList.join(', '),
+      'Số Cốc Cà Phê': c.hasCoffee ? (c.coffeeCount || 0) : 0,
+      'Số Chai Nước Suối': c.hasWater ? (c.waterCount || 0) : 0,
+      'Ngày Chuẩn Bị': c.prepDate || b.date,
+      'Giờ Mang Đồ Vào': c.prepTime || b.startTime,
+      'Địa Điểm Chuẩn Bị': c.location || b.roomName,
+      'Chi Phí Dự Kiến (VNĐ)': c.estimatedCost ? `${c.estimatedCost} VNĐ` : 'Chưa có',
+      'Trạng Thái Duyệt': b.status === 'confirmed' ? `ĐÃ DUYỆT (${b.approvedBy || ''})` : 'CHỜ DUYỆT'
+    };
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+
+  worksheet['!cols'] = [
+    { wch: 6 },
+    { wch: 25 },
+    { wch: 30 },
+    { wch: 22 },
+    { wch: 20 },
+    { wch: 18 },
+    { wch: 16 },
+    { wch: 22 },
+    { wch: 14 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 30 },
+    { wch: 15 },
+    { wch: 18 },
+    { wch: 15 },
+    { wch: 16 },
+    { wch: 22 },
+    { wch: 20 },
+    { wch: 25 },
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Phieu_Thuc_An_FB');
+  const dateStr = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(workbook, `BaoCao_ChuanBi_ThucAn_FB_${dateStr}.xlsx`);
+}
