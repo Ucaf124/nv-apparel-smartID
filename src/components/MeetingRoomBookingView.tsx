@@ -270,7 +270,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     exportRoomBookingsToExcel(bookings);
   };
 
-  // HÀM BẢO MẬT XUẤT EXCEL PHIẾU F&B
+  // HÀM BẢO MẬT XUẤT EXCEL PHIẾU F&B (CHỈ DUYỆT BỞI DUYPT HOẶC YAITP)
   const handleExportCateringSecure = () => {
     const cateringList = bookings.filter(b => b.catering?.hasCatering && b.status !== 'cancelled');
     if (cateringList.length === 0) {
@@ -278,11 +278,31 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       return;
     }
 
-    const pin = prompt('🔐 BẢO MẬT XUẤT PHIẾU F&B\n\nVui lòng nhập Mật khẩu Quản trị để tải báo cáo chuẩn bị thức ăn:');
-    if (pin === null) return;
-    if (pin.trim() !== '8888') {
+    // Popup hỏi tài khoản / mật khẩu của người phụ trách duyệt
+    const promptInput = prompt(
+      '🔐 BẢO MẬT XUẤT PHIẾU F&B\n\nChỉ người phụ trách phê duyệt (Chị Mỹ Duyên hoặc Anh Yai) mới có quyền tải báo cáo này.\n\nVui lòng nhập Tên đăng nhập (Username):'
+    );
+    if (promptInput === null) return;
+
+    const user = promptInput.trim().toLowerCase();
+
+    const passInput = prompt(
+      `🔐 BẢO MẬT XUẤT PHIẾU F&B\n\nNgười dùng: ${user}\nVui lòng nhập Mật khẩu để xác nhận:`
+    );
+    if (passInput === null) return;
+
+    const pass = passInput.trim();
+
+    // Kiểm tra tài khoản duypt, yaitp hoặc admin 8888
+    const isAuthorized = 
+      (user === 'duypt' && pass === 'duypt@356') ||
+      (user === 'yaitp' && pass === 'yaitp#632') ||
+      (user === 'admin' && pass === '8888') ||
+      (pass === '8888');
+
+    if (!isAuthorized) {
       soundFX.playError();
-      alert('❌ Mật khẩu quản trị không đúng!');
+      alert('❌ Xác thực thất bại! Bạn không có quyền tải báo cáo chi phí F&B này.');
       return;
     }
 
@@ -459,16 +479,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               <Plus className="w-4 h-4" />
               <span>Đặt Phòng Mới</span>
             </button>
-
-            <button
-              type="button"
-              onClick={handleExportCateringSecure}
-              className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
-              title="Xuất danh sách chuẩn bị thức ăn & nước uống cho bộ phận Hành chính"
-            >
-              <span>🍱</span>
-              <span className="hidden sm:inline">Xuất Excel F&B</span>
-            </button>
             
             <button
               type="button"
@@ -497,6 +507,15 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
             <div className="flex items-center gap-1.5 text-amber-900 font-bold">
               <span>🍱 Có chuẩn bị thức ăn/nước uống</span>
             </div>
+            <button
+              type="button"
+              onClick={handleExportCateringSecure}
+              className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[11px] flex items-center gap-1 transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer"
+              title="Xuất danh sách chuẩn bị thức ăn & nước uống (Yêu cầu tài khoản duypt hoặc yaitp)"
+            >
+              <span>📥</span>
+              <span>Xuất Excel F&B</span>
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -1168,7 +1187,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   type="text"
                   value={cateringCostCenter}
                   onChange={(e) => setCateringCostCenter(e.target.value)}
-                  placeholder="VD: 1500250100"
+                  placeholder="**********"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:border-amber-500"
                 />
               </div>
