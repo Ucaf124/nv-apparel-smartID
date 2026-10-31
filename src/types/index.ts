@@ -99,7 +99,9 @@ export interface CateringRequest {
   costCenterCode?: string;       // Mã bộ phận / Cost Center (VD: 1500250100)
   cateringType?: 'lunch' | 'snack' | 'both'; // Buổi trưa / Ăn giữa buổi
   hasCoffee?: boolean;           // Có Cafe
+  coffeeCount?: number;
   hasWater?: boolean;            // Có Nước suối
+  waterCount?: number;
   prepDate?: string;             // Ngày chuẩn bị
   prepTime?: string;             // Giờ chuẩn bị
   location?: string;             // Địa điểm chuẩn bị
