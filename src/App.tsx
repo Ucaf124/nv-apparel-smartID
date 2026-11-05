@@ -26,6 +26,7 @@ import {
   Cloud,
   RefreshCw
 } from 'lucide-react';
+import { translations, Language } from './i18n/translations';
 import { AttendanceRecord, DepartmentPassRecord, Employee, RoomBooking, TrainingSession } from './types';
 import { INITIAL_EMPLOYEES, PRESET_ROOMS } from './data/mockEmployees';
 import { TrainingAttendanceView } from './components/TrainingAttendanceView';
@@ -60,6 +61,26 @@ type ActiveTab = 'attendance' | 'department_pass' | 'room_booking' | 'employees'
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('attendance');
+
+// Quản lý ngôn ngữ hiển thị: Mặc định lấy từ localStorage hoặc tiếng Việt
+  const [lang, setLang] = useState<Language>(() => {
+    try {
+      const savedLang = localStorage.getItem('nva_language') as Language;
+      if (savedLang === 'vi' || savedLang === 'th') return savedLang;
+    } catch {
+      // ignore
+    }
+    return 'vi';
+  });
+
+  // Hàm chuyển đổi ngôn ngữ & lưu vào localStorage
+  const handleToggleLang = (newLang: Language) => {
+    setLang(newLang);
+    localStorage.setItem('nva_language', newLang);
+  };
+
+  // Biến t giúp lấy nhanh câu chữ theo ngôn ngữ đang chọn
+  const t = translations[lang];
 
   // Employees data (persisted in localStorage)
   const [employees, setEmployees] = useState<Employee[]>(() => {
@@ -612,7 +633,7 @@ export default function App() {
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
-                Hệ Thống Quét Barcode Thẻ Thay Thế Giấy Ký Tên & Check-In
+                {t.app_subtitle}
               </p>
             </div>
           </div>
@@ -640,14 +661,46 @@ export default function App() {
               </span>
             </div>
 
+            {/* NÚT CHUYỂN ĐỔI NGÔN NGỮ VIỆT - THÁI (MỚI THÊM) */}
+            <div className="flex items-center p-0.5 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold shadow-2xs">
+              <button
+                type="button"
+                onClick={() => handleToggleLang('vi')}
+                className={`px-2 py-1 rounded-lg flex items-center gap-1 transition-all ${
+                  lang === 'vi' 
+                    ? 'bg-white text-blue-900 shadow-xs ring-1 ring-slate-200' 
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+                title="Chuyển sang Tiếng Việt"
+              >
+                <span>🇻🇳</span>
+                <span className="font-extrabold text-[11px]">VI</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleToggleLang('th')}
+                className={`px-2 py-1 rounded-lg flex items-center gap-1 transition-all ${
+                  lang === 'th' 
+                    ? 'bg-white text-blue-900 shadow-xs ring-1 ring-slate-200' 
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+                title="เปลี่ยนเป็นภาษาไทย (Chuyển sang Tiếng Thái)"
+              >
+                <span>🇹🇭</span>
+                <span className="font-extrabold text-[11px]">TH</span>
+              </button>
+            </div>
+
+            {/* Nút Hướng Dẫn Vận Hành */}
             <button
               onClick={() => setShowGuideModal(true)}
-              className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-98"
+              className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-98"
               title="Xem hướng dẫn triển khai thực tế tại nhà máy và cách dùng trên điện thoại"
             >
               <BookOpen className="w-4 h-4" />
-              <span className="hidden sm:inline">Hướng Dẫn Vận Hành</span>
-              <span className="sm:hidden">Hướng Dẫn</span>
+              <span className="hidden sm:inline">{t.guide_button}</span>
+              <span className="sm:hidden">{lang === 'th' ? 'คู่มือ' : 'Hướng Dẫn'}</span>
             </button>
           </div>
         </div>
@@ -663,7 +716,7 @@ export default function App() {
             }`}
           >
             <UserCheck className="w-4 h-4" />
-            <span>Điểm Danh Đào Tạo & Họp</span>
+            <span>{t.tab_attendance}p</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-mono font-bold">
               {sessions.length}
             </span>
@@ -678,7 +731,7 @@ export default function App() {
             }`}
           >
             <CalendarDays className="w-4 h-4" />
-            <span>Đặt Phòng Họp (Hạ Long & Bà Nà)</span>
+            <span>{t.tab_room_booking}</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-mono font-bold">
               {bookings.filter(b => b.status !== 'cancelled' && b.status !== 'completed').length}
             </span>
@@ -693,9 +746,9 @@ export default function App() {
             }`}
           >
             <ArrowLeftRight className="w-4 h-4" />
-            <span>Check-In / Out Bộ Phận</span>
+            <span>{t.tab_department_pass}</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-mono font-bold">
-              {passes.filter(p => p.status === 'active').length} đang ở xưởng
+              {passes.filter(p => p.status === 'active').length} {lang === 'th' ? 'คนในโรงงาน' : 'đang ở xưởng'}
             </span>
           </button>
 
@@ -708,7 +761,7 @@ export default function App() {
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>Danh Sách Công Nhân & Excel</span>
+            <span>{t.tab_employees}</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-mono font-bold">
               {employees.length}
             </span>
@@ -770,7 +823,7 @@ export default function App() {
           }`}
         >
           <UserCheck className="w-5 h-5" />
-          <span>Điểm danh</span>
+          <span>{lang === 'th' ? 'เช็คชื่อ' : 'Điểm danh'}</span>
         </button>
 
         <button
@@ -780,7 +833,7 @@ export default function App() {
           }`}
         >
           <CalendarDays className="w-5 h-5" />
-          <span>Phòng họp</span>
+          <span>{lang === 'th' ? 'ห้องประชุม' : 'Phòng họp'}</span>
         </button>
 
         <button
@@ -810,7 +863,7 @@ export default function App() {
           }`}
         >
           <ArrowLeftRight className="w-5 h-5" />
-          <span>Check-in/Out</span>
+          <span>{lang === 'th' ? 'เข้า/ออก' : 'Check-in/Out'}</span>
         </button>
 
         <button
@@ -820,7 +873,7 @@ export default function App() {
           }`}
         >
           <Users className="w-5 h-5" />
-          <span>Công nhân</span>
+          <span>{lang === 'th' ? 'พนักงาน' : 'Công nhân'}</span>
         </button>
       </nav>
 
