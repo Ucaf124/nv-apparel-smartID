@@ -98,7 +98,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
       : (lang === 'th' ? 'เปิดระบบลงชื่อ' : 'MỞ KHÓA ĐIỂM DANH');
 
     const promptMsg = lang === 'th'
-      ? `🔐 ความปลอดภัย: ${actionText}\n\nการประชุม: "${session.title}"\nประธาน: ${session.instructor}\n\nกรุณาป้อนรหัสบัตรของประธาน หรือรหัสผู้ดูแลระบบ (8888):`
+      ? `🔐 ความปลอดภัย: ${actionText}\n\nการประชุม: "${session.title}"\nประธาน: ${session.instructor}\n\nกรุณาป้อนรหัสบัตรของประธาน หรือรหัสผู้ดูแลระบบ:`
       : `🔐 BẢO MẬT ${actionText}\n\nBuổi họp: "${session.title}"\nNgười chủ trì: ${session.instructor}\n\nĐể ${actionText.toLowerCase()}, vui lòng nhập MÃ THẺ của Người chủ trì hoặc Mật khẩu Quản trị:`;
 
     const promptInput = prompt(promptMsg);
@@ -257,7 +257,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     }
   
     const promptMsg = lang === 'th'
-      ? '🔐 ความปลอดภัย: ส่งออกรายงาน\n\nไฟล์ Excel มีข้อมูลรหัสบัตรพนักงานครบถ้วน\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ (8888) เพื่อดาวน์โหลด:'
+      ? '🔐 ความปลอดภัย: ส่งออกรายงาน\n\nไฟล์ Excel มีข้อมูลรหัสบัตรพนักงานครบถ้วน\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ เพื่อดาวน์โหลด:'
       : '🔐 BẢO MẬT XUẤT BÁO CÁO\n\nFile Excel chứa đầy đủ thông tin và mã thẻ nhân sự.\nVui lòng nhập Mật khẩu Quản trị để tải:';
 
     const pin = prompt(promptMsg);
@@ -276,7 +276,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
   // HÀM XÓA BUỔI HỌP (SONG NGỮ HOÀN TOÀN)
   const handleDeleteSession = async (sessionToDelete: TrainingSession) => {
     const promptMsg = lang === 'th'
-      ? `🔐 ความปลอดภัย: ลบการประชุม\n\nคุณกำลังต้องการลบ: "${sessionToDelete.title}" (${sessionToDelete.date})\n\nการดำเนินการนี้จะลบการประชุมและข้อมูลการลงชื่อทั้งหมดอย่างถาวร\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ (8888) เพื่อยืนยัน:`
+      ? `🔐 ความปลอดภัย: ลบการประชุม\n\nคุณกำลังต้องการลบ: "${sessionToDelete.title}" (${sessionToDelete.date})\n\nการดำเนินการนี้จะลบการประชุมและข้อมูลการลงชื่อทั้งหมดอย่างถาวร\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ เพื่อยืนยัน:`
       : `🔐 BẢO MẬT XÓA BUỔI HỌP\n\nBạn đang yêu cầu xóa: "${sessionToDelete.title}" (${sessionToDelete.date})\n\nThao tác này sẽ xóa vĩnh viễn buổi họp và toàn bộ danh sách điểm danh liên quan.\nVui lòng nhập Mật khẩu Quản trị để xác nhận:`;
 
     const pin = prompt(promptMsg);
@@ -318,7 +318,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     const currentTopic = (session.shiftTopics && session.shiftTopics[shift]) || session.title;
 
     const promptMsg = lang === 'th'
-      ? `🔐 ความปลอดภัย: เปลี่ยนหัวข้อ [${shiftNameDisplay}]\n\nประธาน: "${session.instructor}"\nกรุณาป้อนรหัสบัตรของประธาน หรือรหัสผู้ดูแลระบบ (8888):`
+      ? `🔐 ความปลอดภัย: เปลี่ยนหัวข้อ [${shiftNameDisplay}]\n\nประธาน: "${session.instructor}"\nกรุณาป้อนรหัสบัตรของประธาน หรือรหัสผู้ดูแลระบบ:`
       : `🔐 BẢO MẬT ĐỔI CHỦ ĐỀ [${shiftNameDisplay}]\n\nChủ trì cuộc họp: "${session.instructor}"\n\nVui lòng nhập MÃ THẺ của Người chủ trì hoặc Mật khẩu Quản trị:`;
 
     const promptPin = prompt(promptMsg);
@@ -392,7 +392,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
   // HÀM XÓA LƯỢT ĐIỂM DANH (SONG NGỮ HOÀN TOÀN)
   const handleDeleteRecord = async (record: AttendanceRecord) => {
     const promptMsg = lang === 'th'
-      ? `🔐 ความปลอดภัย: ลบการลงชื่อ\n\nคุณกำลังต้องการลบการลงชื่อของ:\n"${record.employeeName}" (รหัส: ${record.employeeCode})\nเวลา: ${record.scanTime} - วันที่: ${record.date}\n\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ (8888) เพื่อยืนยัน:`
+      ? `🔐 ความปลอดภัย: ลบการลงชื่อ\n\nคุณกำลังต้องการลบการลงชื่อของ:\n"${record.employeeName}" (รหัส: ${record.employeeCode})\nเวลา: ${record.scanTime} - วันที่: ${record.date}\n\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ เพื่อยืนยัน:`
       : `🔐 BẢO MẬT XÓA ĐIỂM DANH\n\nBạn đang yêu cầu xóa lượt điểm danh của:\n"${record.employeeName}" (Mã: ${record.employeeCode})\nThời gian: ${record.scanTime} - Ngày ${record.date}\n\nVui lòng nhập Mật khẩu Quản trị để xác nhận xóa:`;
 
     const pin = prompt(promptMsg);
