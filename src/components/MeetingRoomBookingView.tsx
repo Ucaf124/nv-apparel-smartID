@@ -20,6 +20,7 @@ import {
   ChevronRight,
   ShieldCheck
 } from 'lucide-react';
+import { translations, Language } from '../i18n/translations';
 import { Employee, RoomBooking, TrainingSession, maskEmployeeCode } from '../types';
 import { PRESET_ROOMS } from '../data/mockEmployees';
 import { exportRoomBookingsToExcel, exportCateringReportToExcel } from '../utils/exportExcel';
@@ -40,6 +41,7 @@ interface MeetingRoomBookingViewProps {
   setBookings: React.Dispatch<React.SetStateAction<RoomBooking[]>>;
   onOpenScannerForRoomBooking: (roomId: string, date: string) => void;
   onOpenScannerForRoomCheckIn?: (bookingId: string) => void;
+  lang?: Language;
 }
 
 export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
@@ -47,8 +49,10 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
   bookings,
   setSessions,
   setBookings,
-  onOpenScannerForRoomBooking
+  onOpenScannerForRoomBooking,
+  lang = 'vi'
 }) => {
+  const t = translations[lang];
   const todayStr = new Date().toISOString().split('T')[0];
 
   // Chế độ xem: 'calendar' (Lịch tháng) hoặc 'list' (Chi tiết theo ngày)
@@ -401,11 +405,19 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     }
   };
 
-  // LOGIC LỊCH THÁNG
-  const monthNames = [
+  // Tên tháng theo Tiếng Việt và Tiếng Thái
+  const monthNames = lang === 'th' ? [
+    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+  ] : [
     'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
     'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
   ];
+
+  // Tên thứ trong tuần
+  const weekDays = lang === 'th' 
+    ? ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์']
+    : ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
 
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
@@ -436,13 +448,13 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Quy Trình Duyệt Phòng Họp Nhà Máy
+              {t.room_banner_badge}
             </span>
             <h2 className="text-xl font-extrabold text-slate-900 mt-1">
-              Phòng Họp Vịnh Hạ Long & Bà Nà Hill
+              {t.room_title}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Phê duyệt bởi: <strong>Chị Phan Thị Mỹ Duyên</strong> hoặc <strong>Anh Thaisit Phawang (Yai)</strong>
+              {t.room_approver_subtitle}
             </p>
           </div>
 
@@ -456,7 +468,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 }`}
               >
                 <CalendarIcon className="w-3.5 h-3.5" />
-                <span>Lịch Tháng</span>
+                <span>{t.room_btn_calendar_view}</span>
               </button>
               <button
                 onClick={() => setViewMode('list')}
@@ -465,7 +477,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 }`}
               >
                 <Clock className="w-3.5 h-3.5" />
-                <span>Lịch Theo Ngày</span>
+                <span>{t.room_btn_list_view}</span>
               </button>
             </div>
 
@@ -477,7 +489,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition-all"
             >
               <Plus className="w-4 h-4" />
-              <span>Đặt Phòng Mới</span>
+              <span>{t.room_btn_new_booking}</span>
             </button>
             
             <button
@@ -487,7 +499,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               title="Xuất file Excel lịch phòng họp (Cần mật khẩu quản trị)"
             >
               <FileSpreadsheet className="w-4 h-4" />
-              <span className="hidden sm:inline">Xuất Excel</span>
+              <span className="hidden sm:inline">{t.room_btn_export_bookings}</span>
             </button>
           </div>
         </div>
@@ -495,17 +507,17 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
         {/* Chú thích màu trạng thái (Legend) */}
         <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex flex-wrap items-center gap-4">
-            <span className="font-bold text-slate-700">Chú thích lịch:</span>
+            <span className="font-bold text-slate-700">{t.room_legend_title}</span>
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-xs"></span>
-              <span className="font-semibold text-emerald-800">Đã Xác Nhận (Đã Duyệt)</span>
+              <span className="font-semibold text-emerald-800">{t.room_legend_confirmed}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-full bg-amber-400 shadow-xs"></span>
-              <span className="font-semibold text-amber-800">Chờ Xác Nhận (Chưa Duyệt)</span>
+              <span className="font-semibold text-amber-800">{t.room_legend_pending}</span>
             </div>
             <div className="flex items-center gap-1.5 text-amber-900 font-bold">
-              <span>🍱 Có chuẩn bị thức ăn/nước uống</span>
+              <span>🍱 {t.room_legend_catering}</span>
             </div>
             <button
               type="button"
@@ -514,19 +526,21 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               title="Xuất danh sách chuẩn bị thức ăn & nước uống (Yêu cầu tài khoản duypt hoặc yaitp)"
             >
               <span>📥</span>
-              <span>Xuất Excel F&B</span>
+              <span>{t.room_btn_export_catering}</span>
             </button>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-slate-500">Xem phòng:</span>
+            <span className="text-slate-500">{t.room_select_room}</span>
             <select
               value={selectedRoomId}
               onChange={(e) => setSelectedRoomId(e.target.value)}
               className="px-2.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-blue-900 focus:outline-none"
             >
               {PRESET_ROOMS.map(r => (
-                <option key={r.id} value={r.id}>{r.name}</option>
+                <option key={r.id} value={r.id}>
+                  {lang === 'th' ? (r.id === 'vinh_ha_long' ? 'ห้องประชุมอ่าวฮาลอง (NV1)' : 'ห้องประชุมบานาฮิลล์ (NV2)') : r.name}
+                </option>
               ))}
             </select>
           </div>
@@ -562,7 +576,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 }}
                 className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold hover:bg-slate-50"
               >
-                Hôm nay
+                {t.today}
               </button>
               <button
                 onClick={handleNextMonth}
@@ -576,11 +590,11 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
           {/* Lưới Lịch Tháng (Thứ 2 -> Chủ Nhật) */}
           <div className="grid grid-cols-7 gap-1 sm:gap-2">
-            {['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'].map((dayName) => (
-              <div key={dayName} className="text-center font-bold text-xs py-2 text-slate-500 bg-slate-50 rounded-lg">
-                {dayName}
-              </div>
-            ))}
+            {weekDays.map((dayName) => (
+            <div key={dayName} className="text-center font-bold text-xs py-2 text-slate-500 bg-slate-50 rounded-lg">
+              {dayName}
+            </div>
+          ))}
 
             {Array.from({ length: startOffset }).map((_, i) => (
               <div key={'empty-' + i} className="min-h-[90px] sm:min-h-[115px] p-1 bg-slate-50/40 rounded-xl border border-dashed border-slate-200/60" />
@@ -654,7 +668,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                           <div className="flex items-center justify-between font-mono text-[9px] font-bold">
                             <div className="flex items-center gap-1">
                               <span>{b.startTime}-{b.endTime}</span>
-                              {isMultiDay && <span className="text-purple-600 font-sans">📅 Nhiều ngày</span>}
+                              {isMultiDay && <span className="text-purple-600 font-sans">📅 {lang === 'th' ? 'หลายวัน' : 'Nhiều ngày'}</span>}
                             </div>
 
                             {/* BIỂU TƯỢNG ĐẶT THỨC ĂN */}
@@ -678,7 +692,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
                   {cellBookings.length === 0 && (
                     <div className="text-[10px] text-slate-300 text-center font-medium py-1">
-                      {isPastDate ? 'Đã qua' : 'Trống'}
+                      {isPastDate ? '{t.room_past_date}' : '{t.room_empty}'}
                     </div>
                   )}
                 </div>
@@ -715,7 +729,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 onClick={() => setViewMode('calendar')}
                 className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold hover:bg-slate-50"
               >
-                Về Lịch Tháng
+                {t.room_btn_back_calendar}
               </button>
             </div>
           </div>
@@ -774,10 +788,10 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                         </h4>
 
                         <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
-                          <span><strong>Người họp / Chủ trì:</strong> <span className="text-blue-900 font-bold">{booking.hostName || booking.bookedByName}</span></span>
-                          <span><strong>Người đặt:</strong> {booking.bookedByName} ({maskEmployeeCode(booking.bookedByCode)})</span>
+                          <span><strong>{t.room_host}</strong> <span className="text-blue-900 font-bold">{booking.hostName || booking.bookedByName}</span></span>
+                          <span><strong>{t.room_booker}</strong> {booking.bookedByName} ({maskEmployeeCode(booking.bookedByCode)})</span>
                           <span><strong>Bộ phận:</strong> {booking.department}</span>
-                          <span><strong>Số người:</strong> {booking.participantsCount}</span>
+                          <span><strong>{t.room_participants}</strong> {booking.participantsCount}</span>
                         </div>
 
                         {/* KHUNG HIỂN THỊ THÔNG TIN PHIẾU THỨC ĂN (NẾU CÓ) */}
@@ -818,7 +832,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                             className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
                           >
                             <ShieldCheck className="w-4 h-4" />
-                            <span>Xác Nhận Đặt Phòng</span>
+                            <span>{t.room_btn_approve}</span>
                           </button>
                         )}
 
