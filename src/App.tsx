@@ -782,6 +782,7 @@ export default function App() {
             setActiveSessionId={setActiveSessionId}
             onOpenScanner={handleOpenScannerForAttendance}
             bookings={bookings}
+            lang={lang}
           />
         )}
 
