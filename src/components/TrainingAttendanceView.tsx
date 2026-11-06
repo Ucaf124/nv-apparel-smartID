@@ -21,7 +21,7 @@ import {
   Camera 
 } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
-import { AttendanceRecord, Employee, TrainingSession, maskEmployeeCode } from '../types';
+import { AttendanceRecord, Employee, TrainingSession, maskEmployeeCode, RoomBooking } from '../types';
 import { exportAttendanceToExcel } from '../utils/exportExcel';
 import { deleteAttendanceRecordInCloud, deleteTrainingSessionInCloud, saveTrainingSessionToCloud } from '../services/firebaseSync';
 import { soundFX } from '../utils/audio';
@@ -61,8 +61,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
   const [newInstructor, setNewInstructor] = useState('');
   const [newInstructorCode, setNewInstructorCode] = useState('');
   const [customTypeName, setCustomTypeName] = useState('');
-  const [newLocation, setNewLocation] = useState('Phòng Họp Vịnh Hạ Long');
-  const [selectedLocationType, setSelectedLocationType] = useState('Phòng Họp Vịnh Hạ Long');
+  const [selectedLocationType, setSelectedLocationType] = useState('Phòng Họp Vịnh Hạ Long (NV1)');
   const [customLocationName, setCustomLocationName] = useState('');
   const [newType, setNewType] = useState<'training' | 'meeting' | 'safety' | 'other'>('training');
   const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
@@ -71,7 +70,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
 
   const currentSession = sessions.find(s => s.id === activeSessionId) || sessions[0];
   
-  // Ca điểm danh hiện tại đang chọn trên banner (Mặc định là Ca Sáng nếu chưa có)
+  // Ca điểm danh hiện tại đang chọn trên banner
   const activeShift = currentSession?.currentShift || 'Ca Sáng';
 
   // CHỈ LẤY BẢN GHI ĐIỂM DANH THUỘC ĐÚNG CA ĐANG CHỌN NÀY
@@ -91,16 +90,19 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     return matchSearch && matchDept;
   });
 
-  // HÀM BẬT / TẮT KHÓA ĐIỂM DANH (XÁC THỰC MÃ THẺ GIẢNG VIÊN THÔNG MINH)
+  // HÀM BẬT / TẮT KHÓA ĐIỂM DANH (SONG NGỮ HOÀN TOÀN)
   const handleToggleAttendanceOpen = async (session: TrainingSession) => {
     const isCurrentlyOpen = session.isAttendanceOpen ?? false;
-    const actionText = isCurrentlyOpen ? 'KHÓA (KẾT THÚC) ĐIỂM DANH' : 'MỞ KHÓA ĐIỂM DANH';
+    const actionText = isCurrentlyOpen 
+      ? (lang === 'th' ? 'ปิดระบบลงชื่อ' : 'KHÓA (KẾT THÚC) ĐIỂM DANH') 
+      : (lang === 'th' ? 'เปิดระบบลงชื่อ' : 'MỞ KHÓA ĐIỂM DANH');
 
-    const promptInput = prompt(
-      `🔐 BẢO MẬT ${actionText}\n\nBuổi họp: "${session.title}"\nNgười chủ trì: ${session.instructor}\n\nĐể ${actionText.toLowerCase()}, vui lòng nhập MÃ THẺ của Người chủ trì hoặc Mật khẩu Quản trị:`
-    );
+    const promptMsg = lang === 'th'
+      ? `🔐 ความปลอดภัย: ${actionText}\n\nการประชุม: "${session.title}"\nประธาน: ${session.instructor}\n\nกรุณาป้อนรหัสบัตรของประธาน หรือรหัสผู้ดูแลระบบ (8888):`
+      : `🔐 BẢO MẬT ${actionText}\n\nBuổi họp: "${session.title}"\nNgười chủ trì: ${session.instructor}\n\nĐể ${actionText.toLowerCase()}, vui lòng nhập MÃ THẺ của Người chủ trì hoặc Mật khẩu Quản trị:`;
 
-    if (promptInput === null) return; // Người dùng bấm Hủy
+    const promptInput = prompt(promptMsg);
+    if (promptInput === null) return;
 
     const cleanInput = promptInput.trim().toLowerCase();
     const isAdmin = cleanInput === '8888';
@@ -108,11 +110,9 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     let isAuthorized = isAdmin;
 
     if (!isAuthorized) {
-      // 1. Kiểm tra nếu mã nhập trùng trực tiếp với instructorCode đã lưu
       if (session.instructorCode && cleanInput === session.instructorCode.trim().toLowerCase()) {
         isAuthorized = true;
       } else {
-        // 2. Tra cứu mã thẻ trong danh sách 5.379 nhân sự xem có đúng là giảng viên không
         const foundEmp = employees.find(
           e => e.Employee_Code.trim().toLowerCase() === cleanInput
         );
@@ -121,14 +121,12 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
           const empFullName = (foundEmp.Full_Name || `${foundEmp.Name} ${foundEmp.Surname}`).trim().toLowerCase();
           const targetInstructor = session.instructor.trim().toLowerCase();
 
-          // Hàm bỏ dấu tiếng Việt để so sánh tên không bị lệch dấu
           const removeAccents = (str: string) => 
             str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
 
           const cleanEmpName = removeAccents(empFullName);
           const cleanInstructor = removeAccents(targetInstructor);
 
-          // Nếu tên người nhập trùng khớp với tên người chủ trì -> HỢP LỆ!
           if (cleanEmpName.includes(cleanInstructor) || cleanInstructor.includes(cleanEmpName)) {
             isAuthorized = true;
           }
@@ -138,7 +136,10 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
 
     if (!isAuthorized) {
       soundFX.playError();
-      alert(`❌ XÁC THỰC THẤT BẠI!\n\nMã thẻ vừa nhập không trùng khớp với Người chủ trì (${session.instructor}).\nBạn không có quyền Mở/Khóa điểm danh cho buổi này.`);
+      alert(lang === 'th'
+        ? `❌ ยืนยันตัวตนไม่สำเร็จ!\n\nรหัสบัตรที่ป้อนไม่ตรงกับประธาน (${session.instructor})\nคุณไม่มีสิทธิ์เปิด/ปิดระบบลงชื่อสำหรับรายการนี้`
+        : `❌ XÁC THỰC THẤT BẠI!\n\nMã thẻ vừa nhập không trùng khớp với Người chủ trì (${session.instructor}).\nBạn không có quyền Mở/Khóa điểm danh cho buổi này.`
+      );
       return;
     }
 
@@ -152,13 +153,18 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     await saveTrainingSessionToCloud(updatedSession);
 
     soundFX.playScanSuccess();
+    const shiftDisplayName = session.currentShift === 'Ca Chiều' ? (lang === 'th' ? 'รอบบ่าย' : 'Ca Chiều') : (lang === 'th' ? 'รอบเช้า' : 'Ca Sáng');
     alert(nextState 
-      ? `🟢 ĐÃ MỞ ĐIỂM DANH THÀNH CÔNG!\nBây giờ công nhân viên có thể quét mã vạch thẻ để điểm danh [${session.currentShift || 'Ca Sáng'}].`
-      : `🔒 ĐÃ KHÓA ĐIỂM DANH!\nHệ thống đã ngừng nhận điểm danh cho buổi này.`
+      ? (lang === 'th' 
+          ? `🟢 เปิดระบบลงชื่อสำเร็จแล้ว!\nพนักงานสามารถสแกนบาร์โค้ดบัตรเพื่อลงชื่อ [${shiftDisplayName}] ได้แล้ว`
+          : `🟢 ĐÃ MỞ ĐIỂM DANH THÀNH CÔNG!\nBây giờ công nhân viên có thể quét mã vạch thẻ để điểm danh [${shiftDisplayName}].`)
+      : (lang === 'th'
+          ? `🔒 ปิดระบบลงชื่อเรียบร้อยแล้ว!\nระบบหยุดรับการลงชื่อสำหรับรายการนี้แล้ว`
+          : `🔒 ĐÃ KHÓA ĐIỂM DANH!\nHệ thống đã ngừng nhận điểm danh cho buổi này.`)
     );
   };
 
-  // HÀM CHUYỂN ĐỔI ĐỢT ĐIỂM DANH (CA SÁNG / CA CHIỀU)
+  // HÀM CHUYỂN ĐỔI ĐỢT ĐIỂM DANH
   const handleChangeShift = async (session: TrainingSession, newShift: string) => {
     const updatedSession: TrainingSession = {
       ...session,
@@ -168,21 +174,21 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     await saveTrainingSessionToCloud(updatedSession);
     soundFX.playScanSuccess();
   };
+
+  // HÀM TẠO BUỔI MỚI (SONG NGỮ HOÀN TOÀN)
   const handleCreateSession = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
 
-    // Xác định tên phân loại: nếu chọn 'other' thì lấy chuỗi tự gõ
-    const finalType = newType === 'other' ? (customTypeName.trim() || 'Hoạt động khác') : newType;
+    const finalType = newType === 'other' ? (customTypeName.trim() || (lang === 'th' ? 'กิจกรรมอื่นๆ' : 'Hoạt động khác')) : newType;
 
-    // Xác định địa điểm
     const finalLocation = selectedLocationType === 'other' 
-      ? (customLocationName.trim() || 'Phòng họp khác')
+      ? (customLocationName.trim() || (lang === 'th' ? 'ห้องอื่นๆ' : 'Phòng họp khác'))
       : selectedLocationType;
 
-    // KIỂM TRA TRÙNG LỊCH VỚI ĐẶT PHÒNG NẾU CHỌN 2 PHÒNG CỐ ĐỊNH
-    const isHaLong = finalLocation.includes('Hạ Long') || finalLocation.includes('NV1');
-    const isBaNa = finalLocation.includes('Bà Nà') || finalLocation.includes('NV2');
+    // KIỂM TRA TRÙNG LỊCH PHÒNG
+    const isHaLong = finalLocation.includes('Hạ Long') || finalLocation.includes('NV1') || finalLocation.includes('ฮาลอง');
+    const isBaNa = finalLocation.includes('Bà Nà') || finalLocation.includes('NV2') || finalLocation.includes('บานา');
 
     if (isHaLong || isBaNa) {
       const checkRoomId = isHaLong ? 'vinh_ha_long' : 'ba_na_hill';
@@ -191,12 +197,10 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
           return false;
         }
 
-        // Kiểm tra xem ngày newDate có nằm trong khoảng [b.date -> b.endDate] không
         const end = b.endDate || b.date;
         const dateInRange = newDate >= b.date && newDate <= end;
         if (!dateInRange) return false;
 
-        // Kiểm tra đụng giờ
         return (
           (newStartTime >= b.startTime && newStartTime < b.endTime) ||
           (newEndTime > b.startTime && newEndTime <= b.endTime) ||
@@ -206,8 +210,9 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
 
       if (conflict) {
         soundFX.playError();
-        alert(
-          `⚠️ PHÒNG ĐÃ CÓ NGƯỜI ĐẶT TRƯỚC!\n\nĐịa điểm: ${finalLocation}\nThời gian: ${conflict.startTime} - ${conflict.endTime}\nCuộc họp: "${conflict.title}"\nTrạng thái: ${conflict.status === 'confirmed' ? 'Đã duyệt' : 'Chờ duyệt'}\n\nVui lòng chọn giờ khác hoặc chọn "Phòng khác"!`
+        alert(lang === 'th'
+          ? `⚠️ ห้องนี้ถูกจองไว้แล้ว!\n\nสถานที่: ${finalLocation}\nเวลา: ${conflict.startTime} - ${conflict.endTime}\nการประชุม: "${conflict.title}" โดย ${conflict.bookedByName}\n\nกรุณาเลือกเวลาอื่นหรือเลือก "ห้องอื่นๆ"!`
+          : `⚠️ PHÒNG ĐÃ CÓ NGƯỜI ĐẶT TRƯỚC!\n\nĐịa điểm: ${finalLocation}\nThời gian: ${conflict.startTime} - ${conflict.endTime}\nCuộc họp: "${conflict.title}"\nTrạng thái: ${conflict.status === 'confirmed' ? 'Đã duyệt' : 'Chờ duyệt'}\n\nVui lòng chọn giờ khác hoặc chọn "Phòng khác"!`
         );
         return;
       }
@@ -216,7 +221,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     const newSession: TrainingSession = {
       id: `session_${Date.now()}`,
       title: newTitle.trim(),
-      instructor: newInstructor.trim() || 'Ban Đào Tạo & Nhân Sự',
+      instructor: newInstructor.trim() || (lang === 'th' ? 'ฝ่ายฝึกอบรม & บุคคล' : 'Ban Đào Tạo & Nhân Sự'),
       instructorCode: newInstructorCode.trim(), 
       location: finalLocation,
       date: newDate,
@@ -238,24 +243,29 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     setShowCreateModal(false);
     setNewTitle('');
     setNewInstructor('');
+    setNewInstructorCode('');
     setCustomLocationName('');
-    setCustomTypeName(''); // Reset ô nhập
+    setCustomTypeName('');
   };
 
+  // XUẤT EXCEL (SONG NGỮ BẢO MẬT)
   const handleExport = () => {
     if (!currentSession) return;
     if (currentRecords.length === 0) {
-      alert('Chưa có công nhân viên nào điểm danh trong phiên này để xuất file!');
+      alert(lang === 'th' ? 'ยังไม่มีพนักงานลงชื่อในรอบนี้เพื่อส่งออกไฟล์!' : 'Chưa có công nhân viên nào điểm danh trong phiên này để xuất file!');
       return;
     }
   
-    // Khóa mật khẩu tải file Excel
-    const pin = prompt('🔐 BẢO MẬT XUẤT BÁO CÁO\n\nFile Excel chứa đầy đủ thông tin và mã thẻ nhân sự.\nVui lòng nhập Mật khẩu Quản trị để tải:');
-    if (pin === null) return; // Bấm Cancel
+    const promptMsg = lang === 'th'
+      ? '🔐 ความปลอดภัย: ส่งออกรายงาน\n\nไฟล์ Excel มีข้อมูลรหัสบัตรพนักงานครบถ้วน\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ (8888) เพื่อดาวน์โหลด:'
+      : '🔐 BẢO MẬT XUẤT BÁO CÁO\n\nFile Excel chứa đầy đủ thông tin và mã thẻ nhân sự.\nVui lòng nhập Mật khẩu Quản trị để tải:';
+
+    const pin = prompt(promptMsg);
+    if (pin === null) return;
   
     if (pin.trim() !== '8888') {
       soundFX.playError();
-      alert('❌ Mật khẩu không đúng! Bạn không có quyền tải file báo cáo này.');
+      alert(lang === 'th' ? '❌ รหัสผ่านไม่ถูกต้อง! คุณไม่มีสิทธิ์ดาวน์โหลดไฟล์รายงานนี้' : '❌ Mật khẩu không đúng! Bạn không có quyền tải file báo cáo này.');
       return;
     }
   
@@ -263,85 +273,79 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     exportAttendanceToExcel(currentSession, currentRecords);
   };
 
-  // HÀM XÓA BUỔI HỌP / ĐÀO TẠO (BẢO MẬT: BẮT NHẬP PASS 8888)
+  // HÀM XÓA BUỔI HỌP (SONG NGỮ HOÀN TOÀN)
   const handleDeleteSession = async (sessionToDelete: TrainingSession) => {
-    const pin = prompt(
-      `🔐 BẢO MẬT XÓA BUỔI HỌP\n\nBạn đang yêu cầu xóa: "${sessionToDelete.title}" (${sessionToDelete.date})\n\nThao tác này sẽ xóa vĩnh viễn buổi họp và toàn bộ danh sách điểm danh liên quan.\nVui lòng nhập Mật khẩu Quản trị để xác nhận:`
-    );
+    const promptMsg = lang === 'th'
+      ? `🔐 ความปลอดภัย: ลบการประชุม\n\nคุณกำลังต้องการลบ: "${sessionToDelete.title}" (${sessionToDelete.date})\n\nการดำเนินการนี้จะลบการประชุมและข้อมูลการลงชื่อทั้งหมดอย่างถาวร\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ (8888) เพื่อยืนยัน:`
+      : `🔐 BẢO MẬT XÓA BUỔI HỌP\n\nBạn đang yêu cầu xóa: "${sessionToDelete.title}" (${sessionToDelete.date})\n\nThao tác này sẽ xóa vĩnh viễn buổi họp và toàn bộ danh sách điểm danh liên quan.\nVui lòng nhập Mật khẩu Quản trị để xác nhận:`;
 
-    if (pin === null) return; // Người dùng bấm Hủy
+    const pin = prompt(promptMsg);
+    if (pin === null) return;
 
     if (pin.trim() !== '8888') {
       soundFX.playError();
-      alert('❌ Mật khẩu quản trị không đúng! Không thể xóa buổi họp này.');
+      alert(lang === 'th' ? '❌ รหัสผ่านผู้ดูแลระบบไม่ถูกต้อง! ไม่สามารถลบได้' : '❌ Mật khẩu quản trị không đúng! Không thể xóa buổi họp này.');
       return;
     }
 
-    if (confirm(`Xác nhận xóa vĩnh viễn buổi họp "${sessionToDelete.title}"?`)) {
+    const confirmMsg = lang === 'th'
+      ? `ยืนยันการลบการประชุม "${sessionToDelete.title}" อย่างถาวร?`
+      : `Xác nhận xóa vĩnh viễn buổi họp "${sessionToDelete.title}"?`;
+
+    if (confirm(confirmMsg)) {
       try {
-        // 1. Xóa trong state sessions
         const remainingSessions = sessions.filter(s => s.id !== sessionToDelete.id);
         setSessions(remainingSessions);
-
-        // 2. Xóa các bản ghi điểm danh của buổi đó
         setAttendanceRecords(prev => prev.filter(r => r.sessionId !== sessionToDelete.id));
 
-        // 3. Chuyển active sang buổi kế tiếp nếu đang xem buổi bị xóa
         if (activeSessionId === sessionToDelete.id) {
           setActiveSessionId(remainingSessions[0]?.id || '');
         }
 
-        // 4. Xóa sạch vĩnh viễn trên Cloud Firebase
         await deleteTrainingSessionInCloud(sessionToDelete.id);
-
         soundFX.playScanSuccess();
-        alert('✅ Đã xóa buổi họp và dữ liệu liên quan thành công!');
+        alert(lang === 'th' ? '✅ ลบการประชุมและข้อมูลที่เกี่ยวข้องสำเร็จแล้ว!' : '✅ Đã xóa buổi họp và dữ liệu liên quan thành công!');
       } catch (err) {
         console.error('Lỗi khi xóa buổi họp trên cloud:', err);
       }
     }
   };
 
-  // HÀM ĐỔI CHỦ ĐỀ CHO RIÊNG ĐỢT ĐIỂM DANH (XÁC THỰC MÃ THẺ CHỦ TRÌ THÔNG MINH)
+  // HÀM ĐỔI CHỦ ĐỀ CHO RIÊNG CA NÀY (SONG NGỮ HOÀN TOÀN)
   const handleEditShiftTopic = async (session: TrainingSession) => {
     const shift = session.currentShift || 'Ca Sáng';
+    const shiftNameDisplay = shift === 'Ca Chiều' ? (lang === 'th' ? 'รอบบ่าย' : 'Ca Chiều') : (lang === 'th' ? 'รอบเช้า' : 'Ca Sáng');
     const currentTopic = (session.shiftTopics && session.shiftTopics[shift]) || session.title;
 
-    // 1. Popup nhập mã thẻ
-    const promptPin = prompt(
-      `🔐 BẢO MẬT ĐỔI CHỦ ĐỀ [${shift}]\n\nChủ trì cuộc họp: "${session.instructor}"\n\nVui lòng nhập MÃ THẺ của Người chủ trì hoặc Mật khẩu Quản trị:`
-    );
+    const promptMsg = lang === 'th'
+      ? `🔐 ความปลอดภัย: เปลี่ยนหัวข้อ [${shiftNameDisplay}]\n\nประธาน: "${session.instructor}"\nกรุณาป้อนรหัสบัตรของประธาน หรือรหัสผู้ดูแลระบบ (8888):`
+      : `🔐 BẢO MẬT ĐỔI CHỦ ĐỀ [${shiftNameDisplay}]\n\nChủ trì cuộc họp: "${session.instructor}"\n\nVui lòng nhập MÃ THẺ của Người chủ trì hoặc Mật khẩu Quản trị:`;
 
-    if (promptPin === null) return; // Bấm Cancel
+    const promptPin = prompt(promptMsg);
+    if (promptPin === null) return;
 
     const cleanInput = promptPin.trim().toLowerCase();
     const isAdmin = cleanInput === '8888';
 
-    // 2. Tìm kiếm nhân sự theo mã thẻ vừa gõ trong danh sách 5.379 người
     let isAuthorized = isAdmin;
 
     if (!isAuthorized) {
-      // Kiểm tra trùng trực tiếp mã thẻ đã lưu (nếu có)
       if (session.instructorCode && cleanInput === session.instructorCode.trim().toLowerCase()) {
         isAuthorized = true;
       } else {
-        // Tìm thông tin người đang nhập mã trong danh sách nhân sự
         const foundEmp = employees.find(
           e => e.Employee_Code.trim().toLowerCase() === cleanInput
         );
 
         if (foundEmp) {
-          // Lấy họ tên chuẩn của người nhập mã
           const empFullName = (foundEmp.Full_Name || `${foundEmp.Name} ${foundEmp.Surname}`).trim().toLowerCase();
           const targetInstructor = session.instructor.trim().toLowerCase();
 
-          // Hàm phụ bỏ dấu tiếng Việt để so sánh chuẩn xác tuyệt đối
           const removeAccents = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
 
           const cleanEmpName = removeAccents(empFullName);
           const cleanInstructor = removeAccents(targetInstructor);
 
-          // Nếu tên người nhập chứa tên giảng viên hoặc ngược lại -> HỢP LỆ!
           if (cleanEmpName.includes(cleanInstructor) || cleanInstructor.includes(cleanEmpName)) {
             isAuthorized = true;
           }
@@ -349,19 +353,20 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
       }
     }
 
-    // 3. Nếu không khớp cả tên lẫn mã thẻ
     if (!isAuthorized) {
       soundFX.playError();
-      alert(`❌ XÁC THỰC THẤT BẠI!\n\nMã thẻ vừa nhập không trùng khớp với Người chủ trì cuộc họp này (${session.instructor}).\nChỉ người chủ trì cuộc họp mới có quyền đổi chủ đề của ca họp.`);
+      alert(lang === 'th'
+        ? `❌ ยืนยันตัวตนไม่สำเร็จ!\n\nรหัสบัตรที่ป้อนไม่ตรงกับประธาน (${session.instructor})\nเฉพาะประธานเท่านั้นที่สามารถเปลี่ยนหัวข้อการอบรมของรอบนี้ได้`
+        : `❌ XÁC THỰC THẤT BẠI!\n\nMã thẻ vừa nhập không trùng khớp với Người chủ trì cuộc họp này (${session.instructor}).\nChỉ người chủ trì cuộc họp mới có quyền đổi chủ đề của ca họp.`
+      );
       return;
     }
 
-    // 4. Nhập tên chủ đề mới cho ca này
-    const newTopicName = prompt(
-      `📝 ĐỔI CHỦ ĐỀ ĐÀO TẠO CHO [${shift}]:\n(Chủ đề của ca trước vẫn được giữ nguyên độc lập)\n\nNhập tên chủ đề mới:`,
-      currentTopic
-    );
+    const topicPrompt = lang === 'th'
+      ? `📝 เปลี่ยนหัวข้อการอบรมสำหรับ [${shiftNameDisplay}]:\n(หัวข้อของรอบก่อนหน้าจะถูกเก็บรักษาไว้โดยอิสระ)\n\nป้อนชื่อหัวข้อใหม่:`
+      : `📝 ĐỔI CHỦ ĐỀ ĐÀO TẠO CHO [${shiftNameDisplay}]:\n(Chủ đề của ca trước vẫn được giữ nguyên độc lập)\n\nNhập tên chủ đề mới:`;
 
+    const newTopicName = prompt(topicPrompt, currentTopic);
     if (newTopicName === null || !newTopicName.trim()) return;
 
     const updatedTopics = {
@@ -378,39 +383,39 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
     await saveTrainingSessionToCloud(updatedSession);
 
     soundFX.playScanSuccess();
-    alert(`✅ Đã cập nhật chủ đề cho [${shift}] thành công!\n"${newTopicName.trim()}"`);
+    alert(lang === 'th'
+      ? `✅ อัปเดตหัวข้อสำหรับ [${shiftNameDisplay}] สำเร็จแล้ว!\n"${newTopicName.trim()}"`
+      : `✅ Đã cập nhật chủ đề cho [${shiftNameDisplay}] thành công!\n"${newTopicName.trim()}"`
+    );
   };
   
-  // HÀM XÓA LƯỢT ĐIỂM DANH (BẢO MẬT: BẮT BUỘC NHẬP PASS 8888)
+  // HÀM XÓA LƯỢT ĐIỂM DANH (SONG NGỮ HOÀN TOÀN)
   const handleDeleteRecord = async (record: AttendanceRecord) => {
-    // 1. Popup bảo mật yêu cầu nhập mật khẩu quản trị
-    const pin = prompt(
-      `🔐 BẢO MẬT XÓA ĐIỂM DANH\n\nBạn đang yêu cầu xóa lượt điểm danh của:\n"${record.employeeName}" (Mã: ${record.employeeCode})\nThời gian: ${record.scanTime} - Ngày ${record.date}\n\nVui lòng nhập Mật khẩu Quản trị để xác nhận xóa:`
-    );
+    const promptMsg = lang === 'th'
+      ? `🔐 ความปลอดภัย: ลบการลงชื่อ\n\nคุณกำลังต้องการลบการลงชื่อของ:\n"${record.employeeName}" (รหัส: ${record.employeeCode})\nเวลา: ${record.scanTime} - วันที่: ${record.date}\n\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ (8888) เพื่อยืนยัน:`
+      : `🔐 BẢO MẬT XÓA ĐIỂM DANH\n\nBạn đang yêu cầu xóa lượt điểm danh của:\n"${record.employeeName}" (Mã: ${record.employeeCode})\nThời gian: ${record.scanTime} - Ngày ${record.date}\n\nVui lòng nhập Mật khẩu Quản trị để xác nhận xóa:`;
 
-    if (pin === null) return; // Người dùng bấm Hủy / Cancel
+    const pin = prompt(promptMsg);
+    if (pin === null) return;
 
-    // 2. Kiểm tra mật khẩu 8888
     if (pin.trim() !== '8888') {
       soundFX.playError();
-      alert('❌ Mật khẩu quản trị không đúng! Bạn không có quyền xóa lượt điểm danh này.');
+      alert(lang === 'th' ? '❌ รหัสผ่านไม่ถูกต้อง! คุณไม่มีสิทธิ์ลบรายการนี้' : '❌ Mật khẩu quản trị không đúng! Bạn không có quyền xóa lượt điểm danh này.');
       return;
     }
 
-    // 3. Nếu đúng mật khẩu thì mới tiến hành xóa sạch cả giao diện lẫn Cloud
-    if (confirm(`Xác nhận xóa vĩnh viễn lượt điểm danh của "${record.employeeName}"?`)) {
+    const confirmMsg = lang === 'th'
+      ? `ยืนยันการลบการลงชื่อของ "${record.employeeName}" อย่างถาวร?`
+      : `Xác nhận xóa vĩnh viễn lượt điểm danh của "${record.employeeName}"?`;
+
+    if (confirm(confirmMsg)) {
       try {
-        // Xóa trong danh sách giao diện
         setAttendanceRecords(prev => prev.filter(r => r.id !== record.id));
-
-        // Xóa vĩnh viễn trên Cloud Firebase
         await deleteAttendanceRecordInCloud(record.id);
-
         soundFX.playScanSuccess();
-        alert('✅ Đã xóa lượt điểm danh thành công!');
+        alert(lang === 'th' ? '✅ ลบรายการลงชื่อสำเร็จแล้ว!' : '✅ Đã xóa lượt điểm danh thành công!');
       } catch (err) {
         console.error('Lỗi khi xóa điểm danh trên cloud:', err);
-        alert('Lỗi kết nối khi xóa dữ liệu trên máy chủ.');
       }
     }
   };
@@ -434,17 +439,17 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex-1 sm:flex-none px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+              className="flex-1 sm:flex-none px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4 text-blue-600" />
-              {t.att_btn_create_session}
+              <span>{t.att_btn_create_session}</span>
             </button>
             <button
               onClick={handleExport}
-              className="flex-1 sm:flex-none px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+              className="flex-1 sm:flex-none px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
             >
               <FileSpreadsheet className="w-4 h-4" />
-              {t.att_btn_export_excel}
+              <span>{t.att_btn_export_excel}</span>
             </button>
           </div>
         </div>
@@ -458,9 +463,9 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                   currentSession.type === 'safety' ? 'bg-amber-100 text-amber-800 border border-amber-300' :
                   currentSession.type === 'training' ? 'bg-blue-100 text-blue-800 border border-blue-300' : 'bg-purple-100 text-purple-800 border border-purple-300'
                 }`}>
-                  {currentSession.type === 'safety' ? 'An toàn lao động' :
-                   currentSession.type === 'training' ? 'Đào tạo nội bộ' :
-                   currentSession.type === 'meeting' ? 'Cuộc họp' : currentSession.type}
+                  {currentSession.type === 'safety' ? (lang === 'th' ? 'ความปลอดภัย & ดับเพลิง' : 'An toàn lao động & PCCC') :
+                   currentSession.type === 'training' ? (lang === 'th' ? 'ฝึกอบรมภายใน' : 'Đào tạo nội bộ') :
+                   currentSession.type === 'meeting' ? (lang === 'th' ? 'การประชุม' : 'CUỘC HỌP') : currentSession.type}
                 </span>
                 <span className="text-xs text-slate-600 flex items-center gap-1 font-medium">
                   <Calendar className="w-3.5 h-3.5 text-blue-600" /> {currentSession.date}
@@ -478,28 +483,30 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                   </span>
                   {currentSession.shiftTopics && currentSession.shiftTopics[currentSession.currentShift || 'Ca Sáng'] && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-bold border border-purple-200">
-                      Chủ đề riêng [{currentSession.currentShift || 'Ca Sáng'}]
+                      {lang === 'th' ? `หัวข้อเฉพาะ [${activeShift === 'Ca Chiều' ? 'รอบบ่าย' : 'รอบเช้า'}]` : `Chủ đề riêng [${currentSession.currentShift || 'Ca Sáng'}]`}
                     </span>
                   )}
                 </h3>
 
-                {/* Nếu ca này có đổi tên riêng thì vẫn hiện tên gốc ban đầu nhỏ ở dưới */}
                 {currentSession.shiftTopics && currentSession.shiftTopics[currentSession.currentShift || 'Ca Sáng'] && (
                   <p className="text-[11px] text-slate-500 font-medium">
-                    (Khóa đào tạo gốc: {currentSession.title})
+                    ({lang === 'th' ? 'หลักสูตรดั้งเดิม:' : 'Khóa đào tạo gốc:'} {currentSession.title})
                   </p>
                 )}
               </div>
 
               <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
-                <span><strong>Giảng viên / Chủ trì:</strong> {currentSession.instructor}</span>
-                <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-slate-400" /> <strong>Địa điểm:</strong> {currentSession.location}</span>
+                <span><strong>{t.att_instructor_label}</strong> {currentSession.instructor}</span>
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-slate-400" /> 
+                  <strong>{t.att_location_label}</strong> {currentSession.location}
+                </span>
               </div>
             </div>
 
             {/* KHU VỰC ĐIỀU KHIỂN ĐIỂM DANH & NÚT ON / OFF */}
             <div className="w-full md:w-auto shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-              {/* CÔNG TẮC BẬT / TẮT (ON / OFF) MỞ KHÓA ĐIỂM DANH */}
+              {/* CÔNG TẮC BẬT / TẮT (ON / OFF) */}
               <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
                 <span className="text-[10px] font-bold text-slate-500 uppercase mb-1">
                   {t.att_status_label}
@@ -508,32 +515,30 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                 <button
                   type="button"
                   onClick={() => handleToggleAttendanceOpen(currentSession)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all shadow-xs ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
                     currentSession.isAttendanceOpen
                       ? 'bg-emerald-600 text-white ring-2 ring-emerald-400 animate-pulse'
                       : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                   }`}
-                  title="Bấm để Mở/Khóa điểm danh (Cần mã thẻ giảng viên)"
+                  title={lang === 'th' ? 'กดเพื่อเปิด/ปิดระบบลงชื่อ (ต้องใช้รหัสบัตรวิทยากร)' : 'Bấm để Mở/Khóa điểm danh (Cần mã thẻ giảng viên)'}
                 >
-                  <span className={`w-2 h-2 rounded-full ${currentSession.isAttendanceOpen ? 'bg-white' : 'bg-rose-500'}`}></span>
+                  <span className={`w-2.5 h-2.5 rounded-full ${currentSession.isAttendanceOpen ? 'bg-white' : 'bg-rose-500'}`}></span>
                   <span>{currentSession.isAttendanceOpen ? t.att_status_open : t.att_status_closed}</span>
                 </button>
               </div>
 
-              {/* CHỌN ĐỢT ĐIỂM DANH (CA SÁNG / CA CHIỀU) + NÚT ĐỔI CHỦ ĐỀ */}
+              {/* CHỌN ĐỢT ĐIỂM DANH */}
               <div className="flex flex-col p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
                 <div className="flex items-center justify-between gap-1 mb-1">
                   <span className="text-[10px] font-bold text-slate-500 uppercase">
                     {t.att_shift_label}
                   </span>
-                  {/* NÚT BẤM ĐỔI CHỦ ĐỀ CHO RIÊNG CA NÀY */}
                   <button
                     type="button"
                     onClick={() => handleEditShiftTopic(currentSession)}
-                    className="text-[10px] text-blue-600 hover:text-blue-800 font-bold hover:underline"
-                    title="Đổi chủ đề đào tạo riêng cho ca này (Cần mã thẻ giảng viên)"
+                    className="text-[10px] text-blue-600 hover:text-blue-800 font-bold hover:underline cursor-pointer"
                   >
-                    {t.att_btn_edit_topic} ✏️
+                    {t.att_btn_edit_topic}
                   </button>
                 </div>
 
@@ -547,7 +552,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                 </select>
               </div>
 
-              {/* NÚT QUÉT BARCODE THẺ (SẼ BỊ KHÓA NẾU ĐANG OFF) */}
+              {/* NÚT QUÉT BARCODE THẺ */}
               <button
                 type="button"
                 onClick={() => {
@@ -566,10 +571,9 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                     ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/25 cursor-pointer'
                     : 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
                 }`}
-                title={currentSession.isAttendanceOpen ? 'Bấm để mở camera quét mã thẻ' : 'Điểm danh đang bị khóa bởi Giảng viên'}
               >
                 <ScanLine className="w-5 h-5 animate-pulse" />
-                <span>{t.att_btn_scan} [{currentSession.currentShift || (lang === 'th' ? 'รอบเช้า' : 'Ca Sáng')}]</span>
+                <span>{t.att_btn_scan} [{activeShift === 'Ca Chiều' ? (lang === 'th' ? 'รอบบ่าย' : 'Ca Chiều') : (lang === 'th' ? 'รอบเช้า' : 'Ca Sáng')}]</span>
               </button>
             </div>
           </div>
@@ -579,22 +583,26 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
               <Calendar className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-extrabold text-base text-slate-900">Chưa Có Buổi Họp / Đào Tạo Nào</h3>
+              <h3 className="font-extrabold text-base text-slate-900">
+                {lang === 'th' ? 'ยังไม่มีรายการการประชุม / ฝึกอบรม' : 'Chưa Có Buổi Họp / Đào Tạo Nào'}
+              </h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                Bấm nút &ldquo;Tạo Buổi Mới&rdquo; bên dưới để thiết lập khóa đào tạo hoặc cuộc họp và bắt đầu quét mã vạch điểm danh.
+                {lang === 'th' 
+                  ? 'กดปุ่ม "สร้างการประชุมใหม่" ด้านล่างเพื่อตั้งค่าหลักสูตรฝึกอบรมหรือการประชุม แล้วเริ่มสแกนบาร์โค้ดลงชื่อ'
+                  : 'Bấm nút "Tạo Buổi Mới" bên dưới để thiết lập khóa đào tạo hoặc cuộc họp và bắt đầu quét mã vạch điểm danh.'}
               </p>
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-colors"
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              Tạo Buổi Đầu Tiên
+              <span>{lang === 'th' ? 'สร้างรายการแรก' : 'Tạo Buổi Đầu Tiên'}</span>
             </button>
           </div>
         )}
 
-        {/* KHU VỰC CHỌN BUỔI HỌP THIẾT KẾ MỚI (DROPDOWN + THÔNG TIN + NÚT XÓA) */}
+        {/* KHU VỰC CHỌN BUỔI HỌP DROPDOWN */}
         {sessions.length > 0 && (
           <div className="pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2 flex-1">
@@ -603,7 +611,6 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                 <span>{t.att_session_list_title} ({sessions.length}):</span>
               </span>
 
-              {/* Menu chọn buổi gọn gàng */}
               <div className="relative flex-1 max-w-md">
                 <select
                   value={currentSession?.id || ''}
@@ -622,12 +629,11 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
               </div>
             </div>
 
-            {/* Nút Xóa buổi họp hiện tại (Khóa Pass 8888) */}
             {currentSession && (
               <button
                 type="button"
                 onClick={() => handleDeleteSession(currentSession)}
-                className="px-3 py-2 rounded-xl bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 hover:border-rose-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-2xs shrink-0"
+                className="px-3 py-2 rounded-xl bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 hover:border-rose-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-2xs shrink-0 cursor-pointer"
                 title={`Xóa buổi "${currentSession.title}"`}
               >
                 <Trash2 className="w-3.5 h-3.5 text-rose-500" />
@@ -638,9 +644,8 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
         )}
       </div>
 
-      {/* 4 THẺ THỐNG KÊ MỚI: TỔNG SỐ - CAMERA TRỰC TIẾP - CHỤP ẢNH THẺ - NHẬP MÃ SỐ */}
+      {/* 4 THẺ THỐNG KÊ */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* Thẻ 1: Tổng số người đã điểm danh */}
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
           <span className="text-xs text-slate-500 block font-semibold">{t.att_stat_total}</span>
           <span className="text-2xl font-black text-blue-600 mt-1 block">
@@ -648,8 +653,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
           </span>
           <span className="text-[11px] text-slate-400">{lang === 'th' ? 'พนักงานทั้งหมด' : 'Tổng công nhân viên'}</span>
         </div>
-      
-        {/* Thẻ 2: Quét Camera Trực Tiếp */}
+
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
           <span className="text-xs text-slate-500 block font-semibold flex items-center gap-1">
             <Camera className="w-3.5 h-3.5 text-emerald-600" />
@@ -660,8 +664,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
           </span>
           <span className="text-[11px] text-slate-400">{lang === 'th' ? 'เรียลไทม์' : 'Trực tiếp thời gian thực'}</span>
         </div>
-      
-        {/* Thẻ 3: Chụp / Tải Ảnh Thẻ (THAY CHO THẺ PHÒNG BAN DỰ CŨ) */}
+
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
           <span className="text-xs text-slate-500 block font-semibold flex items-center gap-1">
             <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
@@ -672,8 +675,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
           </span>
           <span className="text-[11px] text-slate-400">{lang === 'th' ? 'ถอดรหัสจากภาพ' : 'Giải mã barcode từ ảnh'}</span>
         </div>
-      
-        {/* Thẻ 4: Nhập Mã Số Thủ Công (THAY CHO THẺ CHỮ KÝ GIẤY CŨ) */}
+
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
           <span className="text-xs text-slate-500 block font-semibold flex items-center gap-1">
             <Keyboard className="w-3.5 h-3.5 text-purple-600" />
@@ -696,7 +698,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
               type="text"
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-              placeholder="Tìm theo tên, mã NV, bộ phận..."
+              placeholder={lang === 'th' ? 'ค้นหาตามชื่อ, รหัส, แผนก...' : 'Tìm theo tên, mã NV, bộ phận...'}
               className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 shadow-sm"
             />
           </div>
@@ -706,9 +708,9 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
             <select
               value={selectedDeptFilter}
               onChange={(e) => setSelectedDeptFilter(e.target.value)}
-              className="w-full sm:w-auto px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:border-blue-500 shadow-sm"
+              className="w-full sm:w-auto px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
             >
-              <option value="all">Tất cả phòng ban ({currentRecords.length})</option>
+              <option value="all">{t.att_all_depts} ({currentRecords.length})</option>
               {availableDepts.map(d => (
                 <option key={d} value={d}>{d}</option>
               ))}
@@ -724,30 +726,22 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
             </div>
             <p className="text-base font-bold text-slate-800">
               {currentRecords.length === 0 
-                ? `Chưa có ai điểm danh cho [${activeShift}]` 
-                : 'Không tìm thấy kết quả phù hợp'}
+                ? (lang === 'th' ? `ยังไม่มีใครลงชื่อสำหรับ [${activeShift === 'Ca Chiều' ? 'รอบบ่าย' : 'รอบเช้า'}]` : `Chưa có ai điểm danh cho [${activeShift}]`)
+                : (lang === 'th' ? 'ไม่พบข้อมูลที่ตรงกัน' : 'Không tìm thấy kết quả phù hợp')}
             </p>
             <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
               {currentRecords.length === 0 
-                ? `Bấm mở khóa ON và bấm nút "QUÉT THẺ [${activeShift}]" để bắt đầu ghi nhận điểm danh cho ca này.` 
-                : 'Vui lòng thử tìm kiếm bằng từ khóa hoặc bộ phận khác.'}
+                ? (lang === 'th' 
+                    ? `กดเปิดระบบ (ON) และกดปุ่ม "สแกนบัตร" เพื่อเริ่มบันทึกการลงชื่อสำหรับรอบนี้`
+                    : `Bấm mở khóa ON và bấm nút "QUÉT THẺ" để bắt đầu ghi nhận điểm danh cho ca này.`)
+                : (lang === 'th' ? 'กรุณาลองค้นหาด้วยคำค้นหาหรือแผนกอื่น' : 'Vui lòng thử tìm kiếm bằng từ khóa hoặc bộ phận khác.')}
             </p>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
-              Nhấn nút &ldquo;QUÉT BARCODE THẺ&rdquo; để quét mã vạch trên thẻ công nhân viên ghi nhận điểm danh tức thì.
-            </p>
-            <button
-              onClick={() => onOpenScanner(currentSession.id)}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-colors shadow-sm"
-            >
-              <ScanLine className="w-4 h-4" />
-              Mở Trình Quét Ngay
-            </button>
           </div>
         ) : (
           <div>
-            {/* ================= MOBILE VIEW (NO HORIZONTAL SCROLL) ================= */}
+            {/* ================= MOBILE VIEW ================= */}
             <div className="block md:hidden divide-y divide-slate-100">
-              {filteredRecords.map((r, index) => (
+              {filteredRecords.map((r) => (
                 <div key={r.id} className="p-3.5 hover:bg-slate-50/80 transition-colors space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -768,8 +762,8 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
 
                     <button
                       onClick={() => handleDeleteRecord(r)}
-                      title="Xoá lượt này"
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors shrink-0"
+                      title="Xóa lượt này"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors shrink-0 cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -791,7 +785,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
               ))}
             </div>
 
-            {/* ================= DESKTOP VIEW (CLEAN TABLE) ================= */}
+            {/* ================= DESKTOP VIEW ================= */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
@@ -834,7 +828,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                       </td>
                       <td className="p-3">
                         <span className="px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-800 font-bold text-[11px] border border-blue-200">
-                          {r.attendanceShift || 'Ca Sáng'}
+                          {r.attendanceShift === 'Ca Chiều' ? (lang === 'th' ? 'รอบบ่าย' : 'Ca Chiều') : (lang === 'th' ? 'รอบเช้า' : 'Ca Sáng')}
                         </span>
                       </td>
                       <td className="p-3 text-slate-800 font-bold max-w-xs truncate" title={r.shiftTopicTitle || r.sessionTitle}>
@@ -846,23 +840,23 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                       <td className="p-3">
                         {r.method === 'photo_scan' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-semibold">
-                            <ImageIcon className="w-3 h-3" /> Chụp ảnh thẻ
+                            <ImageIcon className="w-3 h-3" /> {t.att_method_photo}
                           </span>
                         ) : r.method === 'manual_entry' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-semibold">
-                            <Keyboard className="w-3 h-3" /> Nhập mã số
+                            <Keyboard className="w-3 h-3" /> {t.att_method_manual}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Camera quét thẻ
+                            <CheckCircle2 className="w-3.5 h-3.5" /> {t.att_method_camera}
                           </span>
                         )}
                       </td>
                       <td className="p-3 text-center">
                         <button
                           onClick={() => handleDeleteRecord(r)}
-                          title="Xoá lượt này"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                          title="Xóa lượt này"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -879,12 +873,12 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
       {/* Modal: Create Session */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 text-slate-900">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 text-slate-900 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-base text-slate-900">Tạo Buổi Họp / Đào Tạo Mới</h3>
+              <h3 className="font-extrabold text-base text-slate-900">{t.att_modal_title}</h3>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
               >
                 ✕
               </button>
@@ -893,31 +887,31 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
             <form onSubmit={handleCreateSession} className="space-y-3.5 text-xs">
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
-                  Tên Khóa Đào Tạo / Cuộc Họp <span className="text-rose-500">*</span>
+                  {t.att_modal_name} <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="VD: Đào tạo quy trình may áo Polo xuất khẩu 2026"
+                  placeholder={t.att_modal_name_ph}
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
                 />
               </div>
 
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
-                  Phân Loại <span className="text-rose-500">*</span>
+                  {t.att_modal_type} <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={newType}
-                  onChange={(e) => setNewType(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
+                  onChange={(e) => setNewType(e.target.value as any)}
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
                 >
-                  <option value="training">Đào tạo tay nghề & Kỹ thuật</option>
-                  <option value="safety">An toàn lao động & PCCC</option>
-                  <option value="meeting">Họp giao ban / Cuộc họp nội bộ</option>
-                  <option value="other">📌 Hoạt động khác...</option>
+                  <option value="training">{t.att_modal_type_training}</option>
+                  <option value="safety">{t.att_modal_type_safety}</option>
+                  <option value="meeting">{t.att_modal_type_meeting}</option>
+                  <option value="other">{t.att_modal_type_other}</option>
                 </select>
 
                 {newType === 'other' && (
@@ -927,7 +921,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                       required
                       value={customTypeName}
                       onChange={(e) => setCustomTypeName(e.target.value)}
-                      placeholder="Gõ tên phân loại (VD: Khám sức khỏe định kỳ, Tập huấn 5S, Team building...)"
+                      placeholder={lang === 'th' ? 'ระบุชื่อกิจกรรมอื่นๆ...' : 'Gõ tên phân loại hoạt động khác...'}
                       className="w-full px-3 py-2 bg-purple-50/70 border border-purple-300 rounded-xl text-slate-900 focus:outline-none focus:border-purple-500 font-medium text-xs placeholder-slate-400"
                     />
                   </div>
@@ -936,7 +930,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
 
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
-                  Người Phụ Trách / Giảng Viên <span className="text-rose-500">*</span>
+                  {t.att_modal_instructor} <span className="text-rose-500">*</span>
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input
@@ -944,7 +938,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                     required
                     value={newInstructor}
                     onChange={(e) => setNewInstructor(e.target.value)}
-                    placeholder="Họ tên giảng viên"
+                    placeholder={t.att_modal_inst_name_ph}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium text-xs"
                   />
                   <input
@@ -952,27 +946,27 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                     required
                     value={newInstructorCode}
                     onChange={(e) => setNewInstructorCode(e.target.value)}
-                    placeholder="Mã thẻ giảng viên"
+                    placeholder={t.att_modal_inst_code_ph}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-mono font-bold text-xs"
                   />
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1 italic">
-                  * Giảng viên sẽ dùng Mã số thẻ này để BẬT/TẮT mở khóa điểm danh cho buổi học.
+                  {t.att_modal_inst_hint}
                 </p>
               </div>
 
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
-                  Địa Điểm Họp / Đào Tạo <span className="text-rose-500">*</span>
+                  {t.att_modal_location} <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={selectedLocationType}
                   onChange={(e) => setSelectedLocationType(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
                 >
-                  <option value="Phòng Họp Vịnh Hạ Long (NV1)">Phòng Họp Vịnh Hạ Long (Nhà máy NV1)</option>
-                  <option value="Phòng Họp Bà Nà Hill (NV2)">Phòng Họp Bà Nà Hill (Nhà máy NV2)</option>
-                  <option value="other">📍 Phòng khác / Khu vực khác...</option>
+                  <option value="Phòng Họp Vịnh Hạ Long (NV1)">{t.att_modal_loc_halong}</option>
+                  <option value="Phòng Họp Bà Nà Hill (NV2)">{t.att_modal_loc_bana}</option>
+                  <option value="other">{t.att_modal_loc_other}</option>
                 </select>
               
                 {selectedLocationType === 'other' && (
@@ -982,7 +976,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                       required
                       value={customLocationName}
                       onChange={(e) => setCustomLocationName(e.target.value)}
-                      placeholder="Gõ tên phòng hoặc địa điểm (VD: Hội trường nhà ăn, Xưởng May 1...)"
+                      placeholder={lang === 'th' ? 'พิมพ์ชื่อห้องหรือสถานที่ (เช่น โรงอาหาร, แผนกเย็บ 1...)' : 'Gõ tên phòng hoặc địa điểm (VD: Hội trường nhà ăn, Xưởng May 1...)'}
                       className="w-full px-3 py-2 bg-blue-50/60 border border-blue-300 rounded-xl text-slate-900 text-xs font-bold"
                     />
                   </div>
@@ -991,7 +985,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-slate-700 mb-1 font-bold">Ngày</label>
+                  <label className="block text-slate-700 mb-1 font-bold">{t.att_modal_date}</label>
                   <input
                     type="date"
                     value={newDate}
@@ -1000,7 +994,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-700 mb-1 font-bold">Bắt Đầu</label>
+                  <label className="block text-slate-700 mb-1 font-bold">{t.att_modal_start}</label>
                   <input
                     type="time"
                     value={newStartTime}
@@ -1009,7 +1003,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-700 mb-1 font-bold">Kết Thúc</label>
+                  <label className="block text-slate-700 mb-1 font-bold">{t.att_modal_end}</label>
                   <input
                     type="time"
                     value={newEndTime}
@@ -1023,15 +1017,15 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors cursor-pointer"
                 >
-                  Hủy Bỏ
+                  {t.att_modal_btn_cancel}
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors shadow-sm"
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors shadow-sm cursor-pointer"
                 >
-                  Tạo Mới & Bắt Đầu
+                  {t.att_modal_btn_submit}
                 </button>
               </div>
             </form>
