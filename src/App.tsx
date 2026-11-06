@@ -716,7 +716,7 @@ export default function App() {
             }`}
           >
             <UserCheck className="w-4 h-4" />
-            <span>{t.tab_attendance}p</span>
+            <span>{t.tab_attendance}</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-mono font-bold">
               {sessions.length}
             </span>
