@@ -802,6 +802,7 @@ export default function App() {
             setBookings={setBookings}
             onOpenScannerForRoomBooking={handleOpenScannerForRoomBooking}
             onOpenScannerForRoomCheckIn={handleOpenScannerForRoomCheckIn}
+            lang={lang}
           />
         )}
 
