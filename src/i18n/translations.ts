@@ -122,7 +122,32 @@ export const translations = {
     // Các thông báo chung
     msg_confirm: 'Xác nhận',
     msg_cancel: 'Hủy bỏ',
-    msg_close: 'Đóng'
+    msg_close: 'Đóng',
+    // Điểm danh bổ sung
+    att_instructor_label: 'Giảng viên / Chủ trì:',
+    att_location_label: 'Địa điểm:',
+    att_all_depts: 'Tất cả phòng ban',
+    att_modal_title: 'Tạo Buổi Họp / Đào Tạo Mới',
+    att_modal_name: 'Tên Khóa Đào Tạo / Cuộc Họp',
+    att_modal_name_ph: 'VD: Đào tạo quy trình may áo Polo xuất khẩu 2026',
+    att_modal_type: 'Phân Loại',
+    att_modal_type_training: 'Đào tạo tay nghề & Kỹ thuật',
+    att_modal_type_safety: 'An toàn lao động & PCCC',
+    att_modal_type_meeting: 'Họp giao ban / Cuộc họp nội bộ',
+    att_modal_type_other: '📌 Hoạt động khác...',
+    att_modal_instructor: 'Người Phụ Trách / Giảng Viên',
+    att_modal_inst_name_ph: 'Họ tên giảng viên',
+    att_modal_inst_code_ph: 'Mã thẻ giảng viên',
+    att_modal_inst_hint: '* Giảng viên sẽ dùng Mã số thẻ này để BẬT/TẮT mở khóa điểm danh cho buổi học.',
+    att_modal_location: 'Địa Điểm Họp / Đào Tạo',
+    att_modal_loc_halong: 'Phòng Họp Vịnh Hạ Long (Nhà máy NV1)',
+    att_modal_loc_bana: 'Phòng Họp Bà Nà Hill (Nhà máy NV2)',
+    att_modal_loc_other: '📍 Phòng khác / Khu vực khác...',
+    att_modal_date: 'Ngày',
+    att_modal_start: 'Bắt Đầu',
+    att_modal_end: 'Kết Thúc',
+    att_modal_btn_cancel: 'Hủy Bỏ',
+    att_modal_btn_submit: 'Tạo Mới & Bắt Đầu'
   },
 
   th: {
@@ -240,6 +265,31 @@ export const translations = {
     // Các thông báo chung
     msg_confirm: 'ยืนยัน',
     msg_cancel: 'ยกเลิก',
-    msg_close: 'ปิด'
+    msg_close: 'ปิด',
+    // Điểm danh bổ sung
+    att_instructor_label: 'วิทยากร / ประธาน:',
+    att_location_label: 'สถานที่:',
+    att_all_depts: 'ทุกแผนก',
+    att_modal_title: 'สร้างการอบรม / ประชุมใหม่',
+    att_modal_name: 'ชื่อหลักสูตรอบรม / การประชุม',
+    att_modal_name_ph: 'เช่น การอบรมกระบวนการเย็บเสื้อโปโล 2026',
+    att_modal_type: 'ประเภท',
+    att_modal_type_training: 'ฝึกอบรมฝีมือ & เทคนิค',
+    att_modal_type_safety: 'ความปลอดภัยในการทำงาน & ดับเพลิง',
+    att_modal_type_meeting: 'ประชุมประจำวัน / ประชุมภายใน',
+    att_modal_type_other: '📌 กิจกรรมอื่นๆ...',
+    att_modal_instructor: 'ผู้รับผิดชอบ / วิทยากร',
+    att_modal_inst_name_ph: 'ชื่อ-นามสกุลวิทยากร',
+    att_modal_inst_code_ph: 'รหัสบัตรวิทยากร',
+    att_modal_inst_hint: '* วิทยากรจะใช้รหัสบัตรนี้ในการเปิด/ปิดระบบลงชื่อเข้าอบรม',
+    att_modal_location: 'สถานที่อบรม / ประชุม',
+    att_modal_loc_halong: 'ห้องประชุมอ่าวฮาลอง (โรงงาน NV1)',
+    att_modal_loc_bana: 'ห้องประชุมบานาฮิลล์ (โรงงาน NV2)',
+    att_modal_loc_other: '📍 ห้องอื่นๆ / บริเวณอื่นๆ...',
+    att_modal_date: 'วันที่',
+    att_modal_start: 'เวลาเริ่ม',
+    att_modal_end: 'เวลาสิ้นสุด',
+    att_modal_btn_cancel: 'ยกเลิก',
+    att_modal_btn_submit: 'สร้างและเริ่มใช้งาน'
   }
 };
