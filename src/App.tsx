@@ -792,6 +792,7 @@ export default function App() {
             passes={passes}
             setPasses={setPasses}
             onOpenScannerForPass={handleOpenScannerForPass}
+            lang={lang}
           />
         )}
 
