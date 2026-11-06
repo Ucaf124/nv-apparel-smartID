@@ -20,6 +20,7 @@ import {
   Keyboard, 
   Camera 
 } from 'lucide-react';
+import { translations, Language } from '../i18n/translations';
 import { AttendanceRecord, Employee, TrainingSession, maskEmployeeCode } from '../types';
 import { exportAttendanceToExcel } from '../utils/exportExcel';
 import { deleteAttendanceRecordInCloud, deleteTrainingSessionInCloud, saveTrainingSessionToCloud } from '../services/firebaseSync';
@@ -35,6 +36,7 @@ interface TrainingAttendanceViewProps {
   activeSessionId: string;
   setActiveSessionId: (id: string) => void;
   bookings?: RoomBooking[];
+  lang?: Language;
 }
 
 export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
@@ -46,8 +48,10 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
   setAttendanceRecords,
   activeSessionId,
   setActiveSessionId,
-  bookings
+  bookings,
+  lang = 'vi'
 }) => {
+  const t = translations[lang];
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('all');
@@ -420,10 +424,10 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Điểm Danh Điện Tử Thay Giấy Ký Tên
+              {t.att_banner_badge}
             </span>
             <h2 className="text-xl font-extrabold text-slate-900 mt-1">
-              Điểm Danh Đào Tạo & Tham Dự Họp
+              {t.att_title}
             </h2>
           </div>
 
@@ -433,14 +437,14 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
               className="flex-1 sm:flex-none px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
             >
               <Plus className="w-4 h-4 text-blue-600" />
-              Tạo Buổi Mới
+              {t.att_btn_create_session}
             </button>
             <button
               onClick={handleExport}
               className="flex-1 sm:flex-none px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
             >
               <FileSpreadsheet className="w-4 h-4" />
-              Xuất File Excel
+              {t.att_btn_export_excel}
             </button>
           </div>
         </div>
@@ -498,7 +502,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
               {/* CÔNG TẮC BẬT / TẮT (ON / OFF) MỞ KHÓA ĐIỂM DANH */}
               <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
                 <span className="text-[10px] font-bold text-slate-500 uppercase mb-1">
-                  Trạng thái điểm danh
+                  {t.att_status_label}
                 </span>
                 
                 <button
@@ -512,7 +516,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                   title="Bấm để Mở/Khóa điểm danh (Cần mã thẻ giảng viên)"
                 >
                   <span className={`w-2 h-2 rounded-full ${currentSession.isAttendanceOpen ? 'bg-white' : 'bg-rose-500'}`}></span>
-                  <span>{currentSession.isAttendanceOpen ? 'ĐANG MỞ (ON)' : 'ĐÃ KHÓA (OFF)'}</span>
+                  <span>{currentSession.isAttendanceOpen ? t.att_status_open : t.att_status_closed}</span>
                 </button>
               </div>
 
@@ -520,7 +524,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
               <div className="flex flex-col p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
                 <div className="flex items-center justify-between gap-1 mb-1">
                   <span className="text-[10px] font-bold text-slate-500 uppercase">
-                    Đợt điểm danh
+                    {t.att_shift_label}
                   </span>
                   {/* NÚT BẤM ĐỔI CHỦ ĐỀ CHO RIÊNG CA NÀY */}
                   <button
@@ -529,7 +533,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                     className="text-[10px] text-blue-600 hover:text-blue-800 font-bold hover:underline"
                     title="Đổi chủ đề đào tạo riêng cho ca này (Cần mã thẻ giảng viên)"
                   >
-                    Đổi chủ đề ✏️
+                    {t.att_btn_edit_topic} ✏️
                   </button>
                 </div>
 
@@ -538,8 +542,10 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                   onChange={(e) => handleChangeShift(currentSession, e.target.value)}
                   className="px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-lg text-xs font-extrabold text-blue-900 focus:outline-none cursor-pointer"
                 >
-                  <option value="Ca Sáng">☀️Sáng 07:00-11:30 (Đợt 1)</option>
-                  <option value="Ca Chiều">🌤️Chiều 12:30-16:30 (Đợt 2)</option>
+                  <option value="Ca Sáng">{lang === 'th' ? '☀️ รอบเช้า (07:30-11:30)' : '☀️ Ca Sáng (07:30-11:30)'}</option>
+                  <option value="Ca Chiều">{lang === 'th' ? '🌤️ รอบบ่าย (12:30-16:30)' : '🌤️ Ca Chiều (12:30-16:30)'}</option>
+                  <option value="Ngày 2 - Sáng">{lang === 'th' ? '📅 วันที่ 2 - เช้า' : '📅 Ngày 2 - Sáng'}</option>
+                  <option value="Ngày 2 - Chiều">{lang === 'th' ? '📅 วันที่ 2 - บ่าย' : '📅 Ngày 2 - Chiều'}</option>
                 </select>
               </div>
 
@@ -549,7 +555,10 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                 onClick={() => {
                   if (!currentSession.isAttendanceOpen) {
                     soundFX.playError();
-                    alert(`🔒 ĐIỂM DANH ĐANG BỊ KHÓA!\n\nNgười chủ trì (${currentSession.instructor}) chưa bật mở điểm danh.\nVui lòng bấm vào nút [ĐÃ KHÓA (OFF)] bên cạnh để mở khóa trước khi quét thẻ!`);
+                    alert(lang === 'th' 
+                      ? `🔒 ปิดการลงชื่ออยู่!\n\nผู้รับผิดชอบ (${currentSession.instructor}) ยังไม่ได้เปิดให้ลงชื่อ.\nกรุณากดปุ่มเปิด (ON) ก่อนสแกนบัตร!`
+                      : `🔒 ĐIỂM DANH ĐANG BỊ KHÓA!\n\nNgười chủ trì (${currentSession.instructor}) chưa bật mở điểm danh.\nVui lòng bấm vào nút [ĐÃ KHÓA (OFF)] bên cạnh để mở khóa trước khi quét thẻ!`
+                    );
                     return;
                   }
                   onOpenScanner(currentSession.id);
@@ -562,7 +571,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                 title={currentSession.isAttendanceOpen ? 'Bấm để mở camera quét mã thẻ' : 'Điểm danh đang bị khóa bởi Giảng viên'}
               >
                 <ScanLine className="w-5 h-5 animate-pulse" />
-                <span>QUÉT THẺ [{currentSession.currentShift || 'Ca Sáng'}]</span>
+                <span>{t.att_btn_scan} [{currentSession.currentShift || (lang === 'th' ? 'รอบเช้า' : 'Ca Sáng')}]</span>
               </button>
             </div>
           </div>
@@ -593,7 +602,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
             <div className="flex items-center gap-2 flex-1">
               <span className="text-xs font-bold text-slate-700 shrink-0 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                <span>Danh sách buổi họp ({sessions.length}):</span>
+                <span>{t.att_session_list_title} ({sessions.length}):</span>
               </span>
 
               {/* Menu chọn buổi gọn gàng */}
@@ -607,7 +616,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                     const count = attendanceRecords.filter(r => r.sessionId === s.id).length;
                     return (
                       <option key={s.id} value={s.id}>
-                        [{s.date}] {s.title} ({count} người đã điểm danh)
+                        [{s.date}] {s.title} ({count} {lang === 'th' ? 'คนลงชื่อแล้ว' : 'người đã điểm danh'})
                       </option>
                     );
                   })}
@@ -624,7 +633,7 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                 title={`Xóa buổi "${currentSession.title}"`}
               >
                 <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                <span>Xóa Buổi Này</span>
+                <span>{t.att_btn_delete_session}</span>
               </button>
             )}
           </div>
@@ -635,47 +644,47 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {/* Thẻ 1: Tổng số người đã điểm danh */}
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
-          <span className="text-xs text-slate-500 block font-semibold">Đã Điểm Danh</span>
+          <span className="text-xs text-slate-500 block font-semibold">{t.att_stat_total}</span>
           <span className="text-2xl font-black text-blue-600 mt-1 block">
             {currentRecords.length}
           </span>
-          <span className="text-[11px] text-slate-400">Tổng công nhân viên</span>
+          <span className="text-[11px] text-slate-400">{lang === 'th' ? 'พนักงานทั้งหมด' : 'Tổng công nhân viên'}</span>
         </div>
       
         {/* Thẻ 2: Quét Camera Trực Tiếp */}
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
           <span className="text-xs text-slate-500 block font-semibold flex items-center gap-1">
             <Camera className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Camera Quét Thẻ</span>
+            <span>{t.att_stat_camera}</span>
           </span>
           <span className="text-2xl font-black text-emerald-600 mt-1 block">
             {currentRecords.filter(r => r.method === 'camera_scan' || !r.method).length}
           </span>
-          <span className="text-[11px] text-slate-400">Trực tiếp thời gian thực</span>
+          <span className="text-[11px] text-slate-400">{lang === 'th' ? 'เรียลไทม์' : 'Trực tiếp thời gian thực'}</span>
         </div>
       
         {/* Thẻ 3: Chụp / Tải Ảnh Thẻ (THAY CHO THẺ PHÒNG BAN DỰ CŨ) */}
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
           <span className="text-xs text-slate-500 block font-semibold flex items-center gap-1">
             <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Chụp / Tải Ảnh Thẻ</span>
+            <span>{t.att_stat_photo}</span>
           </span>
           <span className="text-2xl font-black text-indigo-600 mt-1 block">
             {currentRecords.filter(r => r.method === 'photo_scan').length}
           </span>
-          <span className="text-[11px] text-slate-400">Giải mã barcode từ ảnh</span>
+          <span className="text-[11px] text-slate-400">{lang === 'th' ? 'ถอดรหัสจากภาพ' : 'Giải mã barcode từ ảnh'}</span>
         </div>
       
         {/* Thẻ 4: Nhập Mã Số Thủ Công (THAY CHO THẺ CHỮ KÝ GIẤY CŨ) */}
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm">
           <span className="text-xs text-slate-500 block font-semibold flex items-center gap-1">
             <Keyboard className="w-3.5 h-3.5 text-purple-600" />
-            <span>Nhập Mã Số Thẻ</span>
+            <span>{t.att_stat_manual}</span>
           </span>
           <span className="text-2xl font-black text-purple-600 mt-1 block">
             {currentRecords.filter(r => r.method === 'manual_entry').length}
           </span>
-          <span className="text-[11px] text-slate-400">Nhập thủ công bằng tay</span>
+          <span className="text-[11px] text-slate-400">{lang === 'th' ? 'ป้อนรหัสเอง' : 'Nhập thủ công bằng tay'}</span>
         </div>
       </div>
 
@@ -789,15 +798,16 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold">
-                    <th className="p-3 w-12 text-center">STT</th>
-                    <th className="p-3">Mã Thẻ (Code)</th>
-                    <th className="p-3">Họ và Tên</th>
-                    <th className="p-3">Bộ Phận / Xưởng</th>
-                    <th className="p-3">Chức Vụ</th>
-                    <th className="p-3">Giờ Điểm Danh</th>
-                    <th className="p-3">Chủ Đề Đào Tạo Của Ca</th>
-                    <th className="p-3">Phương Thức</th>
-                    <th className="p-3 w-14 text-center">Thao Tác</th>
+                    <th className="p-3 w-12 text-center">{t.att_col_stt}</th>
+                    <th className="p-3">{t.att_col_code}</th>
+                    <th className="p-3">{t.att_col_name}</th>
+                    <th className="p-3">{t.att_col_dept}</th>
+                    <th className="p-3">{t.att_col_position}</th>
+                    <th className="p-3">{t.att_col_shift}</th>
+                    <th className="p-3">{t.att_col_shift_topic}</th>
+                    <th className="p-3">{t.att_col_time}</th>
+                    <th className="p-3">{t.att_col_method}</th>
+                    <th className="p-3 w-14 text-center">{t.att_col_action}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
