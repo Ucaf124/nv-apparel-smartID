@@ -262,7 +262,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     }
 
     const promptMsg = lang === 'th'
-      ? '🔐 ความปลอดภัย: ส่งออกตารางห้องประชุม\n\nไฟล์ Excel มีข้อมูลผู้จองและรหัสบัตรครบถ้วน\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ (8888) เพื่อดาวน์โหลด:'
+      ? '🔐 ความปลอดภัย: ส่งออกตารางห้องประชุม\n\nไฟล์ Excel มีข้อมูลผู้จองและรหัสบัตรครบถ้วน\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ เพื่อดาวน์โหลด:'
       : '🔐 BẢO MẬT XUẤT LỊCH PHÒNG HỌP\n\nFile Excel chứa đầy đủ danh sách cuộc họp, mã thẻ người đặt và phiếu F&B.\nVui lòng nhập Mật khẩu Quản trị để tải:';
 
     const pin = prompt(promptMsg);
