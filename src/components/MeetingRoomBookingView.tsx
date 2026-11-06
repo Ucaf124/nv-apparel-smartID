@@ -138,22 +138,22 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     setFormError(null);
 
     if (!bookTitle.trim()) {
-      setFormError('Vui lòng nhập chủ đề cuộc họp');
+      setFormError(lang === 'th' ? 'กรุณากรอกหัวข้อการประชุม' : 'Vui lòng nhập chủ đề cuộc họp');
       return;
     }
     if (!bookHostName.trim()) {
-      setFormError('Vui lòng nhập người chủ trì / người họp');
+      setFormError(lang === 'th' ? 'กรุณากรอกชื่อประธาน / ผู้เข้าร่วม' : 'Vui lòng nhập người chủ trì / người họp');
       return;
     }
     if (!bookEmpCode.trim()) {
-      setFormError('Vui lòng nhập hoặc quét mã thẻ người đặt');
+      setFormError(lang === 'th' ? 'กรุณากรอกหรือสแกนรหัสบัตรของผู้จอง' : 'Vui lòng nhập hoặc quét mã thẻ người đặt');
       return;
     }
 
     // 1. Chặn đặt ngày quá khứ
     if (bookStartDate < todayStr) {
       soundFX.playError();
-      setFormError('Không thể đặt phòng cho ngày trong quá khứ! Vui lòng chọn từ hôm nay trở đi.');
+      setFormError(lang === 'th' ? 'ไม่สามารถจองห้องสำหรับวันที่ผ่านมาแล้วได้!' : 'Không thể đặt phòng cho ngày trong quá khứ! Vui lòng chọn từ hôm nay trở đi.');
       return;
     }
 
@@ -163,17 +163,17 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       const nowHM = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
       if (bookStartTime < nowHM) {
         soundFX.playError();
-        setFormError(`Giờ bắt đầu (${bookStartTime}) đã trôi qua so với giờ hiện tại (${nowHM})!`);
+        setFormError(lang === 'th' ? `เวลาเริ่ม (${bookStartTime}) ผ่านไปแล้วเมื่อเทียบกับเวลาปัจจุบัน (${nowHM})!` : `Giờ bắt đầu (${bookStartTime}) đã trôi qua so với giờ hiện tại (${nowHM})!`);
         return;
       }
     }
 
     if (bookStartDate > bookEndDate) {
-      setFormError('Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu');
+      setFormError(lang === 'th' ? 'วันที่สิ้นสุดต้องมากกว่าหรือเท่ากับวันที่เริ่มต้น' : 'Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu');
       return;
     }
     if (bookStartTime >= bookEndTime) {
-      setFormError('Giờ kết thúc phải lớn hơn giờ bắt đầu');
+      setFormError(lang === 'th' ? 'เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น' : 'Giờ kết thúc phải lớn hơn giờ bắt đầu');
       return;
     }
 
@@ -198,7 +198,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
     if (isConflict) {
       soundFX.playError();
-      setFormError('Khoảng thời gian này phòng đã có người đặt trước! Vui lòng chọn ngày hoặc giờ khác.');
+      setFormError(lang === 'th' ? 'ช่วงเวลานี้มีผู้จองห้องไว้แล้ว! กรุณาเลือกวันหรือเวลาอื่น' : 'Khoảng thời gian này phòng đã có người đặt trước! Vui lòng chọn ngày hoặc giờ khác.');
       return;
     }
 
@@ -207,10 +207,10 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     const newBooking: RoomBooking = {
       id: `booking_${Date.now()}`,
       roomId: modalRoomId,
-      roomName: roomObj?.name || 'Phòng họp',
+      roomName: roomObj?.name || (lang === 'th' ? 'ห้องประชุม' : 'Phòng họp'),
       bookedByCode: bookEmpCode.trim(),
-      bookedByName: bookEmpName.trim() || 'Người đặt phòng',
-      department: bookDept.trim() || 'Khối Sản Xuất',
+      bookedByName: bookEmpName.trim() || (lang === 'th' ? 'ผู้จอง' : 'Người đặt phòng'),
+      department: bookDept.trim() || (lang === 'th' ? 'ฝ่ายผลิต' : 'Khối Sản Xuất'),
       phone: bookPhone.trim(),
       title: bookTitle.trim(),
       hostName: bookHostName.trim(),
@@ -230,7 +230,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
         waterCount: cateringWater ? Number(cateringWaterCount) : 0,
         prepDate: cateringPrepDate || bookStartDate,
         prepTime: cateringPrepTime || bookStartTime,
-        location: cateringLocation || roomObj?.name || 'Phòng họp',
+        location: cateringLocation || roomObj?.name || (lang === 'th' ? 'ห้องประชุม' : 'Phòng họp'),
         estimatedCost: cateringCost.trim()
       } : undefined,
       status: 'pending',
@@ -248,25 +248,29 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     setBookEmpName('');
     setBookDept('');
     setHasCatering(false);
-    alert('✅ Đã gửi yêu cầu đặt phòng thành công! Cuộc họp đang ở trạng thái CHỜ XÁC NHẬN từ chị Mỹ Duyên hoặc anh Yai.');
+    alert(lang === 'th' 
+      ? '✅ ส่งคำขอจองห้องสำเร็จแล้ว! สถานะกำลังรอการอนุมัติจาก คุณ Mỹ Duyên หรือ คุณ Yai' 
+      : '✅ Đã gửi yêu cầu đặt phòng thành công! Cuộc họp đang ở trạng thái CHỜ XÁC NHẬN từ chị Mỹ Duyên hoặc anh Yai.'
+    );
   };
 
-  // HÀM BẢO MẬT XUẤT EXCEL LỊCH PHÒNG HỌP (BẮT BUỘC NHẬP PASS 8888)
+  // HÀM BẢO MẬT XUẤT EXCEL LỊCH PHÒNG HỌP
   const handleExportBookingsSecure = () => {
     if (bookings.length === 0) {
-      alert('Chưa có dữ liệu lịch đặt phòng nào để xuất file!');
+      alert(lang === 'th' ? 'ไม่มีข้อมูลการจองห้องเพื่อส่งออกไฟล์!' : 'Chưa có dữ liệu lịch đặt phòng nào để xuất file!');
       return;
     }
 
-    const pin = prompt(
-      '🔐 BẢO MẬT XUẤT LỊCH PHÒNG HỌP\n\nFile Excel chứa đầy đủ danh sách cuộc họp, mã thẻ người đặt và phiếu F&B.\nVui lòng nhập Mật khẩu Quản trị để tải:'
-    );
+    const promptMsg = lang === 'th'
+      ? '🔐 ความปลอดภัย: ส่งออกตารางห้องประชุม\n\nไฟล์ Excel มีข้อมูลผู้จองและรหัสบัตรครบถ้วน\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ (8888) เพื่อดาวน์โหลด:'
+      : '🔐 BẢO MẬT XUẤT LỊCH PHÒNG HỌP\n\nFile Excel chứa đầy đủ danh sách cuộc họp, mã thẻ người đặt và phiếu F&B.\nVui lòng nhập Mật khẩu Quản trị để tải:';
 
-    if (pin === null) return; // Người dùng bấm Hủy
+    const pin = prompt(promptMsg);
+    if (pin === null) return;
 
     if (pin.trim() !== '8888') {
       soundFX.playError();
-      alert('❌ Mật khẩu quản trị không đúng! Bạn không có quyền tải file lịch phòng họp này.');
+      alert(lang === 'th' ? '❌ รหัสผ่านไม่ถูกต้อง! คุณไม่มีสิทธิ์ดาวน์โหลดไฟล์นี้' : '❌ Mật khẩu quản trị không đúng! Bạn không có quyền tải file lịch phòng họp này.');
       return;
     }
 
@@ -274,30 +278,32 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     exportRoomBookingsToExcel(bookings);
   };
 
-  // HÀM BẢO MẬT XUẤT EXCEL PHIẾU F&B (CHỈ DUYỆT BỞI DUYPT HOẶC YAITP)
+  // HÀM BẢO MẬT XUẤT EXCEL PHIẾU F&B
   const handleExportCateringSecure = () => {
     const cateringList = bookings.filter(b => b.catering?.hasCatering && b.status !== 'cancelled');
     if (cateringList.length === 0) {
-      alert('Chưa có cuộc họp nào có phiếu yêu cầu chuẩn bị thức ăn/nước uống!');
+      alert(lang === 'th' ? 'ไม่มีการประชุมใดที่มีการสั่งอาหาร/เครื่องดื่ม!' : 'Chưa có cuộc họp nào có phiếu yêu cầu chuẩn bị thức ăn/nước uống!');
       return;
     }
 
-    // Popup hỏi tài khoản / mật khẩu của người phụ trách duyệt
-    const promptInput = prompt(
-      '🔐 BẢO MẬT XUẤT PHIẾU F&B\n\nChỉ người phụ trách phê duyệt (Chị Mỹ Duyên hoặc Anh Yai) mới có quyền tải báo cáo này.\n\nVui lòng nhập Tên đăng nhập (Username):'
-    );
+    const userPrompt = lang === 'th'
+      ? '🔐 ความปลอดภัย: ส่งออกรายการอาหาร F&B\n\nเฉพาะผู้อนุมัติ (คุณ Mỹ Duyên หรือ คุณ Yai) เท่านั้นที่มีสิทธิ์ดาวน์โหลดรายงานนี้\n\nกรุณากรอกชื่อผู้ใช้ (Username):'
+      : '🔐 BẢO MẬT XUẤT PHIẾU F&B\n\nChỉ người phụ trách phê duyệt (Chị Mỹ Duyên hoặc Anh Yai) mới có quyền tải báo cáo này.\n\nVui lòng nhập Tên đăng nhập (Username):';
+
+    const promptInput = prompt(userPrompt);
     if (promptInput === null) return;
 
     const user = promptInput.trim().toLowerCase();
 
-    const passInput = prompt(
-      `🔐 BẢO MẬT XUẤT PHIẾU F&B\n\nNgười dùng: ${user}\nVui lòng nhập Mật khẩu để xác nhận:`
-    );
+    const passPrompt = lang === 'th'
+      ? `🔐 ความปลอดภัย: ส่งออกรายการ F&B\n\nผู้ใช้: ${user}\nกรุณาป้อนรหัสผ่านเพื่อยืนยัน:`
+      : `🔐 BẢO MẬT XUẤT PHIẾU F&B\n\nNgười dùng: ${user}\nVui lòng nhập Mật khẩu để xác nhận:`;
+
+    const passInput = prompt(passPrompt);
     if (passInput === null) return;
 
     const pass = passInput.trim();
 
-    // Kiểm tra tài khoản duypt, yaitp hoặc admin 8888
     const isAuthorized = 
       (user === 'duypt' && pass === 'duypt@356') ||
       (user === 'yaitp' && pass === 'yaitp#632') ||
@@ -306,7 +312,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
     if (!isAuthorized) {
       soundFX.playError();
-      alert('❌ Xác thực thất bại! Bạn không có quyền tải báo cáo chi phí F&B này.');
+      alert(lang === 'th' ? '❌ ยืนยันตัวตนไม่สำเร็จ! คุณไม่มีสิทธิ์ดาวน์โหลดรายงาน F&B นี้' : '❌ Xác thực thất bại! Bạn không có quyền tải báo cáo chi phí F&B này.');
       return;
     }
 
@@ -325,7 +331,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
     if (!matchedApprover) {
       soundFX.playError();
-      setApproverError('Sai tên đăng nhập hoặc mật khẩu người duyệt!');
+      setApproverError(lang === 'th' ? 'ชื่อผู้ใช้หรือรหัสผ่านผู้อนุมัติไม่ถูกต้อง!' : 'Sai tên đăng nhập hoặc mật khẩu người duyệt!');
       return;
     }
 
@@ -377,15 +383,19 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     setApprovingBooking(null);
     setApproverUser('');
     setApproverPass('');
-    alert(`✅ ĐÃ XÁC NHẬN ĐẶT PHÒNG THÀNH CÔNG!\n\nNgười duyệt: ${matchedApprover.name}\nĐã tự động tạo form ký tên buổi họp "${updatedBooking.title}" bên tab Điểm Danh.`);
+    alert(lang === 'th' 
+      ? `✅ อนุมัติการจองห้องสำเร็จแล้ว!\n\nผู้อนุมัติ: ${matchedApprover.name}\nระบบได้สร้างแบบฟอร์มลงชื่อการประชุม "${updatedBooking.title}" ในแท็บเช็คชื่อเรียบร้อยแล้ว`
+      : `✅ ĐÃ XÁC NHẬN ĐẶT PHÒNG THÀNH CÔNG!\n\nNgười duyệt: ${matchedApprover.name}\nĐã tự động tạo form ký tên buổi họp "${updatedBooking.title}" bên tab Điểm Danh.`
+    );
   };
 
   // Hủy/Xóa đặt phòng
   const handleCancelBooking = async (booking: RoomBooking) => {
-    const promptInput = prompt(
-      `🔐 BẢO MẬT HỦY ĐẶT PHÒNG\n\nCuộc họp: "${booking.title}"\n\nĐể hủy lịch này, vui lòng nhập MÃ THẺ của người đặt hoặc Mật khẩu Quản trị:`
-    );
+    const promptMsg = lang === 'th'
+      ? `🔐 ความปลอดภัย: ยกเลิกการจองห้อง\n\nการประชุม: "${booking.title}"\n\nเพื่อยกเลิกรายการนี้ กรุณาป้อนรหัสบัตรของผู้จอง หรือรหัสผ่านผู้ดูแลระบบ:`
+      : `🔐 BẢO MẬT HỦY ĐẶT PHÒNG\n\nCuộc họp: "${booking.title}"\n\nĐể hủy lịch này, vui lòng nhập MÃ THẺ của người đặt hoặc Mật khẩu Quản trị:`;
 
+    const promptInput = prompt(promptMsg);
     if (promptInput === null) return;
 
     const cleanInput = promptInput.trim().toLowerCase();
@@ -394,11 +404,12 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
     if (!isOwner && !isAdmin) {
       soundFX.playError();
-      alert('❌ Xác thực thất bại! Bạn không có quyền hủy lịch này.');
+      alert(lang === 'th' ? '❌ ยืนยันตัวตนไม่สำเร็จ! คุณไม่มีสิทธิ์ยกเลิกรายการนี้' : '❌ Xác thực thất bại! Bạn không có quyền hủy lịch này.');
       return;
     }
 
-    if (confirm(`Xác nhận hủy cuộc họp "${booking.title}"?`)) {
+    const confirmMsg = lang === 'th' ? `ยืนยันการยกเลิกการประชุม "${booking.title}"?` : `Xác nhận hủy cuộc họp "${booking.title}"?`;
+    if (confirm(confirmMsg)) {
       setBookings(prev => prev.filter(b => b.id !== booking.id));
       await deleteRoomBookingInCloud(booking.id);
       soundFX.playScanSuccess();
@@ -486,7 +497,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 setModalRoomId(selectedRoomId);
                 setShowBookingModal(true);
               }}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition-all"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>{t.room_btn_new_booking}</span>
@@ -496,7 +507,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               type="button"
               onClick={handleExportBookingsSecure}
               className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
-              title="Xuất file Excel lịch phòng họp (Cần mật khẩu quản trị)"
+              title={lang === 'th' ? 'ส่งออกไฟล์ตารางการประชุม (ต้องใช้รหัสผ่านผู้ดูแลระบบ)' : 'Xuất file Excel lịch phòng họp (Cần mật khẩu quản trị)'}
             >
               <FileSpreadsheet className="w-4 h-4" />
               <span className="hidden sm:inline">{t.room_btn_export_bookings}</span>
@@ -506,7 +517,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
         {/* Chú thích màu trạng thái (Legend) */}
         <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             <span className="font-bold text-slate-700">{t.room_legend_title}</span>
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-xs"></span>
@@ -516,14 +527,14 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               <span className="w-3 h-3 rounded-full bg-amber-400 shadow-xs"></span>
               <span className="font-semibold text-amber-800">{t.room_legend_pending}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-amber-900 font-bold">
+            <div className="flex items-center gap-1.5 text-amber-900 font-bold bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
               <span>🍱 {t.room_legend_catering}</span>
             </div>
             <button
               type="button"
               onClick={handleExportCateringSecure}
               className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[11px] flex items-center gap-1 transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer"
-              title="Xuất danh sách chuẩn bị thức ăn & nước uống (Yêu cầu tài khoản duypt hoặc yaitp)"
+              title={lang === 'th' ? 'ส่งออกรายการอาหาร F&B (เฉพาะ คุณ Mỹ Duyên หรือ คุณ Yai)' : 'Xuất danh sách chuẩn bị thức ăn & nước uống (Yêu cầu tài khoản duypt hoặc yaitp)'}
             >
               <span>📥</span>
               <span>{t.room_btn_export_catering}</span>
@@ -535,7 +546,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
             <select
               value={selectedRoomId}
               onChange={(e) => setSelectedRoomId(e.target.value)}
-              className="px-2.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-blue-900 focus:outline-none"
+              className="px-2.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-blue-900 focus:outline-none cursor-pointer"
             >
               {PRESET_ROOMS.map(r => (
                 <option key={r.id} value={r.id}>
@@ -557,15 +568,15 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 {monthNames[currentMonth]} / {currentYear}
               </h3>
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200">
-                {currentRoom.name}
+                {lang === 'th' ? (currentRoom.id === 'vinh_ha_long' ? 'ห้องประชุมอ่าวฮาลอง (NV1)' : 'ห้องประชุมบานาฮิลล์ (NV2)') : currentRoom.name}
               </span>
             </div>
 
             <div className="flex items-center gap-1">
               <button
                 onClick={handlePrevMonth}
-                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 transition-colors shadow-2xs"
-                title="Tháng trước"
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 transition-colors shadow-2xs cursor-pointer"
+                title={lang === 'th' ? 'เดือนก่อนหน้า' : 'Tháng trước'}
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -574,14 +585,14 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   setCurrentYear(new Date().getFullYear());
                   setCurrentMonth(new Date().getMonth());
                 }}
-                className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold hover:bg-slate-50"
+                className="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold hover:bg-slate-50 cursor-pointer"
               >
                 {t.today}
               </button>
               <button
                 onClick={handleNextMonth}
-                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 transition-colors shadow-2xs"
-                title="Tháng sau"
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 transition-colors shadow-2xs cursor-pointer"
+                title={lang === 'th' ? 'เดือนถัดไป' : 'Tháng sau'}
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -591,10 +602,10 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
           {/* Lưới Lịch Tháng (Thứ 2 -> Chủ Nhật) */}
           <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {weekDays.map((dayName) => (
-            <div key={dayName} className="text-center font-bold text-xs py-2 text-slate-500 bg-slate-50 rounded-lg">
-              {dayName}
-            </div>
-          ))}
+              <div key={dayName} className="text-center font-bold text-xs py-2 text-slate-500 bg-slate-50 rounded-lg">
+                {dayName}
+              </div>
+            ))}
 
             {Array.from({ length: startOffset }).map((_, i) => (
               <div key={'empty-' + i} className="min-h-[90px] sm:min-h-[115px] p-1 bg-slate-50/40 rounded-xl border border-dashed border-slate-200/60" />
@@ -628,7 +639,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                       ? 'bg-blue-50/50 border-blue-400 ring-2 ring-blue-500/20 cursor-pointer hover:shadow-xs'
                       : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-xs cursor-pointer'
                   }`}
-                  title={isPastDate ? `Ngày ${dateString} đã qua - Không thể đặt phòng` : `Bấm để xem lịch ngày ${dateString}`}
+                  title={isPastDate ? (lang === 'th' ? `วันที่ ${dateString} ผ่านมาแล้ว - ไม่สามารถจองห้องได้` : `Ngày ${dateString} đã qua - Không thể đặt phòng`) : (lang === 'th' ? `คลิกเพื่อดูตารางวันที่ ${dateString}` : `Bấm để xem lịch ngày ${dateString}`)}
                 >
                   <div className="flex items-center justify-between">
                     <span className={`text-xs font-black w-6 h-6 rounded-full flex items-center justify-center ${
@@ -643,7 +654,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
                     {cellBookings.length > 0 && (
                       <span className="text-[10px] font-mono font-bold text-slate-400">
-                        {cellBookings.length} cuộc
+                        {cellBookings.length} {lang === 'th' ? 'การประชุม' : 'cuộc'}
                       </span>
                     )}
                   </div>
@@ -673,7 +684,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
                             {/* BIỂU TƯỢNG ĐẶT THỨC ĂN */}
                             {b.catering?.hasCatering && (
-                              <span className="text-xs" title="Có phiếu chuẩn bị thức ăn & nước uống">
+                              <span className="text-xs" title={lang === 'th' ? 'มีรายการสั่งอาหาร & เครื่องดื่ม' : 'Có phiếu chuẩn bị thức ăn & nước uống'}>
                                 🍱
                               </span>
                             )}
@@ -685,14 +696,14 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
                     {cellBookings.length > 3 && (
                       <div className="text-[9px] text-slate-500 font-bold text-center">
-                        + {cellBookings.length - 3} cuộc khác
+                        + {cellBookings.length - 3} {lang === 'th' ? 'การประชุมอื่นๆ' : 'cuộc khác'}
                       </div>
                     )}
                   </div>
 
                   {cellBookings.length === 0 && (
                     <div className="text-[10px] text-slate-300 text-center font-medium py-1">
-                      {isPastDate ? '{t.room_past_date}' : '{t.room_empty}'}
+                      {isPastDate ? t.room_past_date : t.room_empty}
                     </div>
                   )}
                 </div>
@@ -710,10 +721,10 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               <CalendarDays className="w-5 h-5 text-blue-600" />
               <div>
                 <h3 className="font-extrabold text-sm sm:text-base text-slate-900">
-                  Lịch Trình Chi Tiết: {currentRoom.name}
+                  {t.room_detail_title} {lang === 'th' ? (currentRoom.id === 'vinh_ha_long' ? 'ห้องประชุมอ่าวฮาลอง' : 'ห้องประชุมบานาฮิลล์') : currentRoom.name}
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Ngày đang chọn: <strong className="text-blue-700">{selectedDate}</strong>
+                  {lang === 'th' ? 'วันที่กำลังเลือก:' : 'Ngày đang chọn:'} <strong className="text-blue-700">{selectedDate}</strong>
                 </p>
               </div>
             </div>
@@ -727,7 +738,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               />
               <button
                 onClick={() => setViewMode('calendar')}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold hover:bg-slate-50"
+                className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold hover:bg-slate-50 cursor-pointer"
               >
                 {t.room_btn_back_calendar}
               </button>
@@ -737,8 +748,12 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
           {roomBookings.length === 0 ? (
             <div className="p-8 sm:p-12 text-center space-y-2">
               <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
-              <p className="text-base font-bold text-slate-800">Ngày này chưa có cuộc họp nào!</p>
-              <p className="text-xs text-slate-500">Bạn có thể bấm &ldquo;Đặt Phòng Mới&rdquo; để đăng ký mượn phòng.</p>
+              <p className="text-base font-bold text-slate-800">
+                {lang === 'th' ? 'วันนี้ยังไม่มีการประชุมใดๆ!' : 'Ngày này chưa có cuộc họp nào!'}
+              </p>
+              <p className="text-xs text-slate-500">
+                {lang === 'th' ? 'คุณสามารถกด "จองห้องใหม่" เพื่อลงทะเบียนขอใช้ห้อง' : 'Bạn có thể bấm "Đặt Phòng Mới" để đăng ký mượn phòng.'}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -766,19 +781,19 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
                           {isMultiDay && (
                             <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-300">
-                              Từ {booking.date} đến {booking.endDate}
+                              {lang === 'th' ? `ตั้งแต่ ${booking.date} ถึง ${booking.endDate}` : `Từ ${booking.date} đến ${booking.endDate}`}
                             </span>
                           )}
 
                           {isConfirmed ? (
                             <span className="text-[11px] px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold flex items-center gap-1">
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              ĐÃ XÁC NHẬN (Bởi {booking.approvedBy || 'Quản trị viên'})
+                              {lang === 'th' ? `อนุมัติแล้ว (โดย ${booking.approvedBy || 'ผู้ดูแลระบบ'})` : `ĐÃ XÁC NHẬN (Bởi ${booking.approvedBy || 'Quản trị viên'})`}
                             </span>
                           ) : (
                             <span className="text-[11px] px-2.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-extrabold flex items-center gap-1 animate-pulse">
                               <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                              CHỜ XÁC NHẬN (Chưa duyệt)
+                              {lang === 'th' ? 'รอยืนยัน (ยังไม่อนุมัติ)' : 'CHỜ XÁC NHẬN (Chưa duyệt)'}
                             </span>
                           )}
                         </div>
@@ -790,7 +805,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                         <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
                           <span><strong>{t.room_host}</strong> <span className="text-blue-900 font-bold">{booking.hostName || booking.bookedByName}</span></span>
                           <span><strong>{t.room_booker}</strong> {booking.bookedByName} ({maskEmployeeCode(booking.bookedByCode)})</span>
-                          <span><strong>Bộ phận:</strong> {booking.department}</span>
+                          <span><strong>{t.room_dept}</strong> {booking.department}</span>
                           <span><strong>{t.room_participants}</strong> {booking.participantsCount}</span>
                         </div>
 
@@ -798,22 +813,22 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                         {booking.catering?.hasCatering && (
                           <div className="mt-2 p-2.5 rounded-xl bg-amber-50/90 border border-amber-200 text-xs text-amber-950 space-y-1 animate-in fade-in">
                             <div className="flex items-center gap-1.5 font-black text-amber-900">
-                              <span>🍱 Phiếu Chuẩn Bị Thức Ăn & Nước Uống (F&B):</span>
+                              <span>🍱 {lang === 'th' ? 'ใบแจ้งจัดอาหาร & เครื่องดื่ม (F&B):' : 'Phiếu Chuẩn Bị Thức Ăn & Nước Uống (F&B):'}</span>
                               <span className="text-[10px] px-2 py-0.2 rounded-full bg-amber-200 text-amber-900">
-                                {booking.catering.cateringType === 'lunch' ? 'Buổi trưa' : booking.catering.cateringType === 'both' ? 'Trưa & Giữa buổi' : 'Ăn giữa buổi (Snack)'}
+                                {booking.catering.cateringType === 'lunch' ? (lang === 'th' ? 'อาหารกลางวัน' : 'Buổi trưa') : booking.catering.cateringType === 'both' ? (lang === 'th' ? 'กลางวัน & อาหารว่าง' : 'Trưa & Giữa buổi') : (lang === 'th' ? 'อาหารว่าง (Snack)' : 'Ăn giữa buổi (Snack)')}
                               </span>
                             </div>
 
                             <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-amber-800">
                               <span>
-                                <strong>Thức uống:</strong> {[
-                                  booking.catering.hasCoffee && `☕ Cà phê (${booking.catering.coffeeCount || 0} cốc)`,
-                                  booking.catering.hasWater && `💧 Nước suối (${booking.catering.waterCount || 0} chai)`
-                                ].filter(Boolean).join(', ') || 'Không'}
+                                <strong>{lang === 'th' ? 'เครื่องดื่ม:' : 'Thức uống:'}</strong> {[
+                                  booking.catering.hasCoffee && (lang === 'th' ? `☕ กาแฟ (${booking.catering.coffeeCount || 0} แก้ว)` : `☕ Cà phê (${booking.catering.coffeeCount || 0} cốc)`),
+                                  booking.catering.hasWater && (lang === 'th' ? `💧 น้ำดื่ม (${booking.catering.waterCount || 0} ขวด)` : `💧 Nước suối (${booking.catering.waterCount || 0} chai)`)
+                                ].filter(Boolean).join(', ') || (lang === 'th' ? 'ไม่มี' : 'Không')}
                               </span>
-                              <span><strong>Thời gian mang vào:</strong> {booking.catering.prepTime} ({booking.catering.prepDate})</span>
+                              <span><strong>{lang === 'th' ? 'เวลาจัดส่ง:' : 'Thời gian mang vào:'}</strong> {booking.catering.prepTime} ({booking.catering.prepDate})</span>
                               {booking.catering.costCenterCode && <span><strong>Cost Center:</strong> {booking.catering.costCenterCode}</span>}
-                              {booking.catering.estimatedCost && <span><strong>Chi phí dự kiến:</strong> {booking.catering.estimatedCost} VNĐ</span>}
+                              {booking.catering.estimatedCost && <span><strong>{lang === 'th' ? 'งบประมาณประมาณการ:' : 'Chi phí dự kiến:'}</strong> {booking.catering.estimatedCost} VNĐ</span>}
                             </div>
                           </div>
                         )}
@@ -829,7 +844,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                               setApproverPass('');
                               setApproverError('');
                             }}
-                            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+                            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
                           >
                             <ShieldCheck className="w-4 h-4" />
                             <span>{t.room_btn_approve}</span>
@@ -838,8 +853,8 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
                         <button
                           onClick={() => handleCancelBooking(booking)}
-                          className="p-2 rounded-xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors shadow-2xs"
-                          title="Hủy / Xóa lịch này (Cần mã thẻ người đặt)"
+                          className="p-2 rounded-xl bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 transition-colors shadow-2xs cursor-pointer"
+                          title={lang === 'th' ? 'ยกเลิก / ลบรายการนี้' : 'Hủy / Xóa lịch này (Cần mã thẻ người đặt)'}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -858,11 +873,11 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
           <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto text-slate-900">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-extrabold text-base text-slate-900">
-                Đặt Phòng Họp Nhà Máy
+                {lang === 'th' ? 'จองห้องประชุมโรงงาน' : 'Đặt Phòng Họp Nhà Máy'}
               </h3>
               <button
                 onClick={() => setShowBookingModal(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
               >
                 ✕
               </button>
@@ -878,43 +893,47 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
             <form onSubmit={handleCreateBooking} className="space-y-3.5 text-xs">
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
-                  Chọn Phòng Họp <span className="text-rose-500">*</span>
+                  {lang === 'th' ? 'เลือกห้องประชุม' : 'Chọn Phòng Họp'} <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={modalRoomId}
                   onChange={(e) => setModalRoomId(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-bold"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-bold cursor-pointer"
                 >
                   {PRESET_ROOMS.map(r => (
-                    <option key={r.id} value={r.id}>{r.name} (Sức chứa {r.capacity} người)</option>
+                    <option key={r.id} value={r.id}>
+                      {lang === 'th' 
+                        ? (r.id === 'vinh_ha_long' ? `ห้องประชุมอ่าวฮาลอง (จุได้ ${r.capacity} คน)` : `ห้องประชุมบานาฮิลล์ (จุได้ ${r.capacity} คน)`)
+                        : `${r.name} (Sức chứa ${r.capacity} người)`}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
-                  Chủ Đề Cuộc Họp <span className="text-rose-500">*</span>
+                  {lang === 'th' ? 'หัวข้อการประชุม' : 'Chủ Đề Cuộc Họp'} <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   value={bookTitle}
                   onChange={(e) => setBookTitle(e.target.value)}
-                  placeholder="VD: Họp KPI, SCR, Kế hoạch tuần..."
+                  placeholder={lang === 'th' ? 'เช่น ประชุม KPI, SCR, แผนงานประจำสัปดาห์...' : 'VD: Họp KPI, SCR, Kế hoạch tuần...'}
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
                 />
               </div>
 
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
-                  Người Họp / Chủ Trì Cuộc Họp <span className="text-rose-500">*</span>
+                  {lang === 'th' ? 'ผู้เข้าร่วม / ประธานการประชุม' : 'Người Họp / Chủ Trì Cuộc Họp'} <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   value={bookHostName}
                   onChange={(e) => setBookHostName(e.target.value)}
-                  placeholder="VD: Nguyễn Huỳnh Như Ngọc (Sewing Supervisor)"
+                  placeholder={lang === 'th' ? 'เช่น คุณ Nguyễn Huỳnh Như Ngọc (Sewing Supervisor)' : 'VD: Nguyễn Huỳnh Như Ngọc (Sewing Supervisor)'}
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-500 font-medium"
                 />
               </div>
@@ -922,15 +941,15 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-slate-700 font-bold">
-                    Mã Thẻ Người Đặt <span className="text-rose-500">*</span>
+                    {lang === 'th' ? 'รหัสบัตรผู้จอง' : 'Mã Thẻ Người Đặt'} <span className="text-rose-500">*</span>
                   </label>
                   <button
                     type="button"
                     onClick={() => onOpenScannerForRoomBooking(modalRoomId, bookStartDate)}
-                    className="text-[11px] text-blue-600 hover:text-blue-800 flex items-center gap-1 font-bold"
+                    className="text-[11px] text-blue-600 hover:text-blue-800 flex items-center gap-1 font-bold cursor-pointer"
                   >
                     <ScanLine className="w-3.5 h-3.5" />
-                    Bật Camera Quét Thẻ
+                    <span>{lang === 'th' ? 'เปิดกล้องสแกนบัตร' : 'Bật Camera Quét Thẻ'}</span>
                   </button>
                 </div>
                 <input
@@ -938,24 +957,24 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   required
                   value={bookEmpCode}
                   onChange={(e) => handleEmpCodeChange(e.target.value)}
-                  placeholder="Nhập đủ 9 chữ số mã thẻ của bạn..."
+                  placeholder={lang === 'th' ? 'กรอกรหัสบัตร 9 หลักของคุณ...' : 'Nhập đủ 9 chữ số mã thẻ của bạn...'}
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-slate-700 mb-1 font-bold">Họ Tên</label>
+                  <label className="block text-slate-700 mb-1 font-bold">{lang === 'th' ? 'ชื่อ - นามสกุล' : 'Họ Tên'}</label>
                   <input
                     type="text"
                     value={bookEmpName}
                     onChange={(e) => setBookEmpName(e.target.value)}
-                    placeholder="Tự điền khi quét/nhập mã"
+                    placeholder={lang === 'th' ? 'เติมอัตโนมัติเมื่อสแกน' : 'Tự điền khi quét/nhập mã'}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-700 mb-1 font-bold">Bộ Phận</label>
+                  <label className="block text-slate-700 mb-1 font-bold">{lang === 'th' ? 'แผนก' : 'Bộ Phận'}</label>
                   <input
                     type="text"
                     value={bookDept}
@@ -969,7 +988,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               {/* CHỌN TỪ NGÀY -> ĐẾN NGÀY */}
               <div className="grid grid-cols-2 gap-2 p-2.5 bg-blue-50/60 border border-blue-200 rounded-xl">
                 <div>
-                  <label className="block text-blue-900 mb-1 font-bold">Từ Ngày</label>
+                  <label className="block text-blue-900 mb-1 font-bold">{lang === 'th' ? 'ตั้งแต่วันที่' : 'Từ Ngày'}</label>
                   <input
                     type="date"
                     required
@@ -983,7 +1002,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-blue-900 mb-1 font-bold">Đến Ngày</label>
+                  <label className="block text-blue-900 mb-1 font-bold">{lang === 'th' ? 'ถึงวันที่' : 'Đến Ngày'}</label>
                   <input
                     type="date"
                     required
@@ -997,7 +1016,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-slate-700 mb-1 font-bold">Từ Giờ</label>
+                  <label className="block text-slate-700 mb-1 font-bold">{lang === 'th' ? 'ตั้งแต่เวลา' : 'Từ Giờ'}</label>
                   <input
                     type="time"
                     required
@@ -1007,7 +1026,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-700 mb-1 font-bold">Đến Giờ</label>
+                  <label className="block text-slate-700 mb-1 font-bold">{lang === 'th' ? 'ถึงเวลา' : 'Đến Giờ'}</label>
                   <input
                     type="time"
                     required
@@ -1019,7 +1038,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-slate-700 mb-1 font-bold">Số Người Tham Gia</label>
+                <label className="block text-slate-700 mb-1 font-bold">{lang === 'th' ? 'จำนวนผู้เข้าร่วม' : 'Số Người Tham Gia'}</label>
                 <input
                   type="number"
                   min="1"
@@ -1036,9 +1055,13 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-lg">🍱</span>
                     <div className="truncate">
-                      <p className="text-xs font-black text-amber-950">Chuẩn Bị Thức Ăn & Nước Uống</p>
+                      <p className="text-xs font-black text-amber-950">
+                        {lang === 'th' ? 'การจัดเตรียมอาหาร & เครื่องดื่ม' : 'Chuẩn Bị Thức Ăn & Nước Uống'}
+                      </p>
                       <p className="text-[11px] text-amber-700 truncate">
-                        {hasCatering ? '✓ Đã thiết lập phiếu chuẩn bị F&B' : 'Phiếu báo thức ăn/nước uống phòng họp'}
+                        {hasCatering 
+                          ? (lang === 'th' ? '✓ บันทึกฟอร์ม F&B เรียบร้อยแล้ว' : '✓ Đã thiết lập phiếu chuẩn bị F&B')
+                          : (lang === 'th' ? 'ใบแจ้งสั่งอาหาร/เครื่องดื่มในห้องประชุม' : 'Phiếu báo thức ăn/nước uống phòng họp')}
                       </p>
                     </div>
                   </div>
@@ -1053,13 +1076,13 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                       if (!cateringWaterCount) setCateringWaterCount(Number(bookParticipants) || 10);
                       setShowCateringModal(true);
                     }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shadow-2xs shrink-0 ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shadow-2xs shrink-0 cursor-pointer ${
                       hasCatering
                         ? 'bg-amber-600 text-white hover:bg-amber-700'
                         : 'bg-white text-amber-900 border border-amber-300 hover:bg-amber-100'
                     }`}
                   >
-                    {hasCatering ? 'Sửa Phiếu ✏️' : '+ Điền Phiếu F&B'}
+                    {hasCatering ? (lang === 'th' ? 'แก้ไขฟอร์ม ✏️' : 'Sửa Phiếu ✏️') : (lang === 'th' ? '+ กรอกฟอร์ม F&B' : '+ Điền Phiếu F&B')}
                   </button>
                 </div>
               </div>
@@ -1068,15 +1091,15 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowBookingModal(false)}
-                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors cursor-pointer"
                 >
-                  Hủy Bỏ
+                  {t.msg_cancel}
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors shadow-sm"
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors shadow-sm cursor-pointer"
                 >
-                  Gửi Yêu Cầu Đặt Phòng
+                  {lang === 'th' ? 'ส่งคำขอจองห้อง' : 'Gửi Yêu Cầu Đặt Phòng'}
                 </button>
               </div>
             </form>
@@ -1092,23 +1115,23 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-emerald-600" />
                 <h3 className="font-extrabold text-sm text-slate-900">
-                  Xác Nhận Phê Duyệt Phòng Họp
+                  {lang === 'th' ? 'ยืนยันการอนุมัติห้องประชุม' : 'Xác Nhận Phê Duyệt Phòng Họp'}
                 </h3>
               </div>
               <button
                 onClick={() => setApprovingBooking(null)}
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
-              <p><strong>Cuộc họp:</strong> {approvingBooking.title}</p>
-              <p><strong>Phòng:</strong> {approvingBooking.roomName}</p>
-              <p><strong>Thời gian:</strong> {approvingBooking.startTime} - {approvingBooking.endTime}</p>
-              <p><strong>Ngày:</strong> {approvingBooking.date}{approvingBooking.endDate && approvingBooking.endDate !== approvingBooking.date ? ` đến ${approvingBooking.endDate}` : ''}</p>
-              <p><strong>Người chủ trì:</strong> {approvingBooking.hostName || approvingBooking.bookedByName}</p>
+              <p><strong>{lang === 'th' ? 'การประชุม:' : 'Cuộc họp:'}</strong> {approvingBooking.title}</p>
+              <p><strong>{lang === 'th' ? 'ห้อง:' : 'Phòng:'}</strong> {approvingBooking.roomName}</p>
+              <p><strong>{lang === 'th' ? 'เวลา:' : 'Thời gian:'}</strong> {approvingBooking.startTime} - {approvingBooking.endTime}</p>
+              <p><strong>{lang === 'th' ? 'วันที่:' : 'Ngày:'}</strong> {approvingBooking.date}{approvingBooking.endDate && approvingBooking.endDate !== approvingBooking.date ? ` ${lang === 'th' ? 'ถึง' : 'đến'} ${approvingBooking.endDate}` : ''}</p>
+              <p><strong>{lang === 'th' ? 'ประธานการประชุม:' : 'Người chủ trì:'}</strong> {approvingBooking.hostName || approvingBooking.bookedByName}</p>
             </div>
 
             {approverError && (
@@ -1120,7 +1143,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
             <form onSubmit={handleApproveSubmit} className="space-y-3 text-xs">
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
-                  Tài khoản người duyệt:
+                  {lang === 'th' ? 'ชื่อผู้ใช้อนุมัติ:' : 'Tài khoản người duyệt:'}
                 </label>
                 <input
                   type="text"
@@ -1135,14 +1158,14 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
-                  Mật khẩu:
+                  {lang === 'th' ? 'รหัสผ่าน:' : 'Mật khẩu:'}
                 </label>
                 <input
                   type="password"
                   required
                   value={approverPass}
                   onChange={(e) => setApproverPass(e.target.value)}
-                  placeholder="Nhập mật khẩu người duyệt..."
+                  placeholder={lang === 'th' ? 'ป้อนรหัสผ่านผู้อนุมัติ...' : 'Nhập mật khẩu người duyệt...'}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -1151,15 +1174,15 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setApprovingBooking(null)}
-                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
+                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors cursor-pointer"
                 >
-                  Đóng
+                  {t.msg_close}
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black transition-all shadow-sm"
+                  className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black transition-all shadow-sm cursor-pointer"
                 >
-                  Xác Nhận & Tạo Form
+                  {lang === 'th' ? 'อนุมัติ & สร้างฟอร์ม' : 'Xác Nhận & Tạo Form'}
                 </button>
               </div>
             </form>
@@ -1176,7 +1199,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 <span className="text-xl">🍱</span>
                 <div>
                   <h3 className="font-extrabold text-sm text-slate-900">
-                    Phiếu Báo Chuẩn Bị Thức Ăn Phòng Họp
+                    {lang === 'th' ? 'ใบแจ้งขอจัดอาหารในการประชุม' : 'Phiếu Báo Chuẩn Bị Thức Ăn Phòng Họp'}
                   </h3>
                   <p className="text-[10px] text-slate-500 font-thai">
                     ใบแจ้งขอจัดอาหาร / จัดอาหารว่างในการประชุม
@@ -1186,7 +1209,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowCateringModal(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
               >
                 ✕
               </button>
@@ -1195,45 +1218,45 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
             <div className="space-y-3.5 text-xs">
               <div>
                 <label className="block text-slate-700 mb-1 font-bold">
-                  Mã Bộ Phận / Cost Center Code (10 số)
+                  {lang === 'th' ? 'รหัสแผนก / Cost Center Code (10 หลัก)' : 'Mã Bộ Phận / Cost Center Code (10 số)'}
                 </label>
                 <input
                   type="text"
                   value={cateringCostCenter}
                   onChange={(e) => setCateringCostCenter(e.target.value)}
-                  placeholder="**********"
+                  placeholder="1500250100"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div>
                 <label className="block text-slate-700 mb-1.5 font-bold">
-                  Loại Yêu Cầu Chuẩn Bị:
+                  {lang === 'th' ? 'ประเภทที่ต้องการจัดเตรียม:' : 'Loại Yêu Cầu Chuẩn Bị:'}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setCateringType('snack')}
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       cateringType === 'snack'
                         ? 'bg-amber-100 border-amber-400 font-bold text-amber-950'
                         : 'bg-white border-slate-200 text-slate-700'
                     }`}
                   >
-                    <p className="font-bold">☕ Ăn Giữa Buổi</p>
+                    <p className="font-bold">☕ {lang === 'th' ? 'จัดอาหารว่าง' : 'Ăn Giữa Buổi'}</p>
                     <p className="text-[10px] text-slate-500 font-thai">จัดอาหารว่าง</p>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setCateringType('lunch')}
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       cateringType === 'lunch'
                         ? 'bg-amber-100 border-amber-400 font-bold text-amber-950'
                         : 'bg-white border-slate-200 text-slate-700'
                     }`}
                   >
-                    <p className="font-bold">🍱 Chuẩn Bị Buổi Trưa</p>
+                    <p className="font-bold">🍱 {lang === 'th' ? 'จัดอาหารกลางวัน' : 'Chuẩn Bị Buổi Trưa'}</p>
                     <p className="text-[10px] text-slate-500 font-thai">จัดอาหารกลางวัน</p>
                   </button>
                 </div>
@@ -1241,7 +1264,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
               <div>
                 <label className="block text-slate-700 mb-1.5 font-bold">
-                  Nước Uống Kèm Theo & Số Lượng:
+                  {lang === 'th' ? 'เครื่องดื่มที่ต้องการ & จำนวน:' : 'Nước Uống Kèm Theo & Số Lượng:'}
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
                   
@@ -1253,12 +1276,12 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                         onChange={(e) => setCateringCoffee(e.target.checked)}
                         className="w-4 h-4 text-amber-600 rounded"
                       />
-                      <span>☕ Coffee (Cà phê)</span>
+                      <span>☕ Coffee ({lang === 'th' ? 'กาแฟ' : 'Cà phê'})</span>
                     </label>
 
                     {cateringCoffee && (
                       <div className="flex items-center gap-1.5 pl-6">
-                        <span className="text-[11px] text-slate-500">Số cốc:</span>
+                        <span className="text-[11px] text-slate-500">{lang === 'th' ? 'จำนวนแก้ว:' : 'Số cốc:'}</span>
                         <input
                           type="number"
                           min="1"
@@ -1279,12 +1302,12 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                         onChange={(e) => setCateringWater(e.target.checked)}
                         className="w-4 h-4 text-blue-600 rounded"
                       />
-                      <span>💧 Water (Nước suối)</span>
+                      <span>💧 Water ({lang === 'th' ? 'น้ำดื่ม' : 'Nước suối'})</span>
                     </label>
 
                     {cateringWater && (
                       <div className="flex items-center gap-1.5 pl-6">
-                        <span className="text-[11px] text-slate-500">Số chai:</span>
+                        <span className="text-[11px] text-slate-500">{lang === 'th' ? 'จำนวนขวด:' : 'Số chai:'}</span>
                         <input
                           type="number"
                           min="1"
@@ -1301,7 +1324,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-slate-700 mb-1 font-bold">Ngày Chuẩn Bị</label>
+                  <label className="block text-slate-700 mb-1 font-bold">{lang === 'th' ? 'วันที่จัดเตรียม' : 'Ngày Chuẩn Bị'}</label>
                   <input
                     type="date"
                     value={cateringPrepDate}
@@ -1310,7 +1333,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-700 mb-1 font-bold">Giờ Mang Đồ Vào</label>
+                  <label className="block text-slate-700 mb-1 font-bold">{lang === 'th' ? 'เวลาจัดส่ง' : 'Giờ Mang Đồ Vào'}</label>
                   <input
                     type="time"
                     value={cateringPrepTime}
@@ -1322,22 +1345,22 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-slate-700 mb-1 font-bold">Địa Điểm Chuẩn Bị</label>
+                  <label className="block text-slate-700 mb-1 font-bold">{lang === 'th' ? 'สถานที่จัดเตรียม' : 'Địa Điểm Chuẩn Bị'}</label>
                   <input
                     type="text"
                     value={cateringLocation}
                     onChange={(e) => setCateringLocation(e.target.value)}
-                    placeholder="VD: Phòng Vịnh Hạ Long"
+                    placeholder={lang === 'th' ? 'เช่น ห้องประชุมอ่าวฮาลอง' : 'VD: Phòng Vịnh Hạ Long'}
                     className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-700 mb-1 font-bold">Chi Phí Dự Kiến (VNĐ)</label>
+                  <label className="block text-slate-700 mb-1 font-bold">{lang === 'th' ? 'งบประมาณประมาณการ (VNĐ)' : 'Chi Phí Dự Kiến (VNĐ)'}</label>
                   <input
                     type="text"
                     value={cateringCost}
                     onChange={(e) => setCateringCost(e.target.value)}
-                    placeholder="VD: 350.000"
+                    placeholder="350.000"
                     className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-mono font-bold"
                   />
                 </div>
@@ -1350,9 +1373,9 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                     setHasCatering(false);
                     setShowCateringModal(false);
                   }}
-                  className="px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl font-bold transition-colors"
+                  className="px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl font-bold transition-colors cursor-pointer"
                 >
-                  Xóa Phiếu Này
+                  {lang === 'th' ? 'ลบฟอร์มนี้' : 'Xóa Phiếu Này'}
                 </button>
                 <button
                   type="button"
@@ -1360,9 +1383,9 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                     setHasCatering(true);
                     setShowCateringModal(false);
                   }}
-                  className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black transition-all shadow-sm"
+                  className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black transition-all shadow-sm cursor-pointer"
                 >
-                  Lưu Phiếu Chuẩn Bị
+                  {lang === 'th' ? 'บันทึกฟอร์มเตรียมอาหาร' : 'Lưu Phiếu Chuẩn Bị'}
                 </button>
               </div>
             </div>
