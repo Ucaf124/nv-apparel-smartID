@@ -23,6 +23,7 @@ import {
   Lock,
   KeyRound
 } from 'lucide-react';
+import { translations, Language } from '../i18n/translations';
 import { Employee } from '../types';
 import { INITIAL_EMPLOYEES } from '../data/mockEmployees';
 import { exportEmployeeListToExcel, exportSampleTemplateExcel, parseEmployeesFromExcel } from '../utils/exportExcel';
@@ -33,13 +34,16 @@ interface EmployeeManagerViewProps {
   employees: Employee[];
   setEmployees: React.Dispatch<React.SetStateAction<Employee[]>>;
   onViewCard: (employee: Employee) => void;
+  lang?: Language;
 }
 
 export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
   employees,
   setEmployees,
-  onViewCard
+  onViewCard,
+  lang = 'vi'
 }) => {
+  const t = translations[lang];
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState(false);
@@ -220,9 +224,11 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
           <Lock className="w-8 h-8" />
         </div>
         <div>
-          <h3 className="text-lg font-extrabold text-slate-900">Khu Vực Bảo Mật Nhân Sự</h3>
+          <h3 className="text-lg font-extrabold text-slate-900">{lang === 'th' ? 'พื้นที่ความปลอดภัยฝ่ายบุคคล' : 'Khu Vực Bảo Mật Nhân Sự'}</h3>
           <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            Danh sách toàn thể <strong>{employees.length.toLocaleString()} công nhân viên</strong> chứa thông tin nội bộ. Vui lòng nhập mật khẩu quản trị để xem.
+            {lang === 'th' 
+              ? `รายชื่อพนักงานทั้งหมด ${employees.length.toLocaleString()} คน มีข้อมูลภายใน กรุณาป้อนรหัสผ่านเพื่อเข้าชม` 
+              : `Danh sách toàn thể ${employees.length.toLocaleString()} công nhân viên chứa thông tin nội bộ. Vui lòng nhập mật khẩu quản trị để xem.`}
           </p>
         </div>
 
@@ -237,14 +243,14 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
                 setPasswordInput(e.target.value);
                 setAuthError(false);
               }}
-              placeholder="Nhập mật khẩu quản trị..."
+              placeholder={lang === 'th' ? 'ป้อนรหัสผ่านผู้ดูแลระบบ...' : 'Nhập mật khẩu quản trị...'}
               className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500 shadow-sm text-center"
             />
           </div>
 
           {authError && (
             <p className="text-xs text-rose-600 font-bold animate-shake">
-              ❌ Mật khẩu không chính xác! Vui lòng thử lại.
+              {lang === 'th' ? '❌ รหัสผ่านไม่ถูกต้อง! กรุณาลองใหม่อีกครั้ง' : '❌ Mật khẩu không chính xác! Vui lòng thử lại.'}
             </p>
           )}
 
@@ -252,7 +258,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
             type="submit"
             className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-extrabold transition-all shadow-sm active:scale-98"
           >
-            Mở Khóa Xem Danh Sách
+            {lang === 'th' ? 'ปลดล็อคเพื่อดูรายชื่อ' : 'Mở Khóa Xem Danh Sách'}
           </button>
         </form>
       </div>
@@ -266,13 +272,13 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Cơ Sở Dữ Liệu Nhân Sự & Thẻ Barcode
+              {t.emp_banner_badge}
             </span>
             <h2 className="text-xl font-extrabold text-slate-900 mt-1">
-              Danh Sách Toàn Thể Công Nhân Nhà Máy
+              {t.emp_title}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Tổng cộng: <strong className="text-slate-800">{employees.length}</strong> nhân sự trong hệ thống
+              {lang === 'th' ? 'ทั้งหมด:' : 'Tổng cộng:'} <strong className="text-slate-800">{employees.length.toLocaleString()}</strong> {t.emp_total_label}
             </p>
           </div>
 
@@ -295,7 +301,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
               className="flex-1 sm:flex-none px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-98"
             >
               <Upload className="w-4 h-4" />
-              <span>{isUploading ? 'Đang đọc Excel...' : 'Tải Lên File Excel (.xlsx)'}</span>
+              <span>{isUploading ? (lang === 'th' ? 'กำลังอ่าน Excel...' : 'Đang đọc Excel...') : t.emp_btn_upload_excel}</span>
             </button>
 
             {/* Template Download Button */}
@@ -305,7 +311,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
               title="Tải file Excel mẫu có định dạng chuẩn để điền dữ liệu"
             >
               <FileSpreadsheet className="w-4 h-4 text-blue-600" />
-              <span>Tải File Mẫu Chuẩn</span>
+              <span>{t.emp_btn_sample_template}</span>
             </button>
 
             {/* Export Excel Button (if employees exist) */}
@@ -315,7 +321,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
                 className="flex-1 sm:flex-none px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
               >
                 <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                <span>Xuất File Excel</span>
+                <span>{t.emp_btn_export_excel}</span>
               </button>
             )}
 
@@ -417,7 +423,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Tìm theo mã thẻ, họ tên, chức vụ, bộ phận..."
+                    placeholder={t.emp_search_placeholder}
                     className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 shadow-xs"
                   />
                 </div>
@@ -429,7 +435,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
                     onChange={(e) => setSelectedFactory(e.target.value)}
                     className="px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-700 font-medium focus:outline-none shadow-xs"
                   >
-                    <option value="all">Tất cả xưởng</option>
+                    <option value="all">{t.emp_all_factories}</option>
                     {uniqueFactories.map(f => (
                       <option key={f} value={f}>{f}</option>
                     ))}
@@ -440,7 +446,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
                     onChange={(e) => setSelectedDept(e.target.value)}
                     className="px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-700 font-medium focus:outline-none shadow-xs"
                   >
-                    <option value="all">Tất cả phòng ban</option>
+                    <option value="all">{t.emp_all_departments}</option>
                     {uniqueDepts.map(d => (
                       <option key={d} value={d}>{d}</option>
                     ))}
@@ -453,10 +459,10 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
                     className="px-3 py-2 bg-white border border-blue-200 text-blue-800 font-bold rounded-xl text-xs focus:outline-none shadow-xs"
                     title="Số lượng công nhân viên hiển thị trên 1 trang"
                   >
-                    <option value={50}>50 người / trang</option>
-                    <option value={100}>100 người / trang</option>
-                    <option value={200}>200 người / trang</option>
-                    <option value={500}>500 người / trang</option>
+                    <option value={50}>50 {t.emp_per_page}</option>
+                    <option value={100}>100 {t.emp_per_page}</option>
+                    <option value={200}>200 {t.emp_per_page}</option>
+                    <option value={500}>500 {t.emp_per_page}</option>
                   </select>
                 </div>
               </div>
@@ -587,14 +593,14 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold">
-                        <th className="p-3 w-14 text-center">STT</th>
-                        <th className="p-3">Mã Thẻ (Barcode)</th>
-                        <th className="p-3">Họ và Tên</th>
-                        <th className="p-3">Chức Vụ</th>
-                        <th className="p-3">Phòng Ban / Khối</th>
-                        <th className="p-3">Xưởng</th>
-                        <th className="p-3">Tổ / Chuyền</th>
-                        <th className="p-3 text-center">Thẻ & Barcode</th>
+                        <th className="p-3 w-14 text-center">{t.att_col_stt}</th>
+                        <th className="p-3">{lang === 'th' ? 'รหัสบัตร (Barcode)' : 'Mã Thẻ (Barcode)'}</th>
+                        <th className="p-3">{t.att_col_name}</th>
+                        <th className="p-3">{t.att_col_position}</th>
+                        <th className="p-3">{lang === 'th' ? 'แผนก / สายงาน' : 'Phòng Ban / Khối'}</th>
+                        <th className="p-3">{t.pass_col_factory}</th>
+                        <th className="p-3">{lang === 'th' ? 'กลุ่ม / ไลน์' : 'Tổ / Chuyền'}</th>
+                        <th className="p-3 text-center">{lang === 'th' ? 'บัตร & บาร์โค้ด' : 'Thẻ & Barcode'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -670,7 +676,7 @@ export const EmployeeManagerView: React.FC<EmployeeManagerViewProps> = ({
                                 className="px-3 py-1 rounded-lg bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 text-xs font-bold inline-flex items-center gap-1 transition-all shadow-xs"
                               >
                                 <CreditCard className="w-3.5 h-3.5" />
-                                <span>Xem Thẻ</span>
+                                <span>{t.emp_card_btn}</span>
                               </button>
                             </td>
                           </tr>
