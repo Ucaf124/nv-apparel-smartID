@@ -544,8 +544,6 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                 >
                   <option value="Ca Sáng">{lang === 'th' ? '☀️ รอบเช้า (07:30-11:30)' : '☀️ Ca Sáng (07:30-11:30)'}</option>
                   <option value="Ca Chiều">{lang === 'th' ? '🌤️ รอบบ่าย (12:30-16:30)' : '🌤️ Ca Chiều (12:30-16:30)'}</option>
-                  <option value="Ngày 2 - Sáng">{lang === 'th' ? '📅 วันที่ 2 - เช้า' : '📅 Ngày 2 - Sáng'}</option>
-                  <option value="Ngày 2 - Chiều">{lang === 'th' ? '📅 วันที่ 2 - บ่าย' : '📅 Ngày 2 - Chiều'}</option>
                 </select>
               </div>
 
