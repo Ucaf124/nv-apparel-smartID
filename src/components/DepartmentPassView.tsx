@@ -15,7 +15,6 @@ import {
   MapPin, 
   RotateCcw,
   Trash2,
-  Check,
   X
 } from 'lucide-react';
 import { translations, Language } from '../i18n/translations';
@@ -30,7 +29,7 @@ interface DepartmentPassViewProps {
   passes: DepartmentPassRecord[];
   setPasses: React.Dispatch<React.SetStateAction<DepartmentPassRecord[]>>;
   onOpenScannerForPass: (config: {
-    factory: string; // Thêm trường factory bắt buộc
+    factory: string;
     fromDept: string;
     toDept: string;
     reason: string;
@@ -44,7 +43,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
   passes,
   setPasses,
   onOpenScannerForPass,
-  lang = 'vi' // Mặc định 'vi'
+  lang = 'vi'
 }) => {
   const t = translations[lang];
   const [fromDept, setFromDept] = useState(COMMON_DEPARTMENTS[5]);
@@ -105,11 +104,13 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                           p.toDepartment.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           p.reason.toLowerCase().includes(searchTerm.toLowerCase());
       if (!matchSearch) return false;
+
       // Lọc cột Nhà Máy (Chốt)
       if (selectedFactoryFilter.length > 0) {
         const passFactory = p.factoryCheckPoint || 'NV1';
         if (!selectedFactoryFilter.includes(passFactory)) return false;
       }
+
       // 2. Lọc nhanh thanh công cụ
       if (statusFilter === 'active' && p.status !== 'active') return false;
       if (statusFilter === 'returned' && p.status !== 'returned') return false;
@@ -133,15 +134,14 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
         : (lang === 'th' ? 'กลับแล้ว' : 'Đã về');
       if (selectedOutStatuses.length > 0 && !selectedOutStatuses.includes(outStatus)) return false;
 
-      
       return true;
     });
-  }, [passes, searchTerm, statusFilter, selectedEmployees, selectedRoutes, selectedReasons, selectedInDates, selectedOutStatuses]);
+  }, [passes, searchTerm, statusFilter, selectedFactoryFilter, selectedEmployees, selectedRoutes, selectedReasons, selectedInDates, selectedOutStatuses, lang]);
 
   const handleStartScan = () => {
     const finalReason = customReason.trim() || reason;
     onOpenScannerForPass({
-      factory: selectedFactory, // Truyền nhà máy đã chọn sang máy quét
+      factory: selectedFactory,
       fromDept,
       toDept,
       reason: finalReason,
@@ -149,11 +149,13 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
     });
   };
 
+  // BẢO MẬT XÁC NHẬN VỀ (SONG NGỮ HOÀN TOÀN)
   const handleMarkReturned = async (pass: DepartmentPassRecord) => {
-    const promptInput = prompt(
-      `🔐 BẢO MẬT XÁC NHẬN VỀ\n\nNhân sự: ${pass.employeeName}\nLộ trình: ${pass.fromDepartment} → ${pass.toDepartment}\n\nVui lòng nhập MÃ THẺ của bạn hoặc Mật khẩu Quản trị để xác nhận rời khỏi bộ phận:`
-    );
+    const promptMsg = lang === 'th'
+      ? `🔐 ความปลอดภัย: ยืนยันการกลับ\n\nพนักงาน: ${pass.employeeName}\nเส้นทาง: ${pass.fromDepartment} → ${pass.toDepartment}\n\nกรุณาป้อนรหัสบัตรของคุณ หรือรหัสผ่านผู้ดูแลระบบ เพื่อยืนยันการออกจากแผนก:`
+      : `🔐 BẢO MẬT XÁC NHẬN VỀ\n\nNhân sự: ${pass.employeeName}\nLộ trình: ${pass.fromDepartment} → ${pass.toDepartment}\n\nVui lòng nhập MÃ THẺ của bạn hoặc Mật khẩu Quản trị để xác nhận rời khỏi bộ phận:`;
 
+    const promptInput = prompt(promptMsg);
     if (promptInput === null) return;
 
     const cleanInput = promptInput.trim().toLowerCase();
@@ -162,7 +164,10 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
 
     if (!isOwner && !isAdmin) {
       soundFX.playError();
-      alert('❌ Xác thực thất bại! Bạn không phải nhân sự này và không có quyền xác nhận về thay người khác.');
+      alert(lang === 'th' 
+        ? '❌ ยืนยันตัวตนไม่สำเร็จ! คุณไม่ใช่พนักงานท่านนี้ และไม่มีสิทธิ์ยืนยันการกลับแทนผู้อื่น' 
+        : '❌ Xác thực thất bại! Bạn không phải nhân sự này và không có quyền xác nhận về thay người khác.'
+      );
       return;
     }
 
@@ -180,45 +185,60 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
     setPasses(prev => prev.map(p => p.id === pass.id ? updatedPass : p));
     await updateDepartmentPassInCloud(updatedPass);
     soundFX.playScanSuccess();
-    alert(`✅ Đã xác nhận ra khỏi bộ phận thành công lúc ${timeStr}!`);
+    alert(lang === 'th' ? `✅ ยืนยันการออกจากแผนกสำเร็จแล้วเมื่อ ${timeStr}!` : `✅ Đã xác nhận ra khỏi bộ phận thành công lúc ${timeStr}!`);
   };
 
+  // BẢO MẬT XÓA NHẬT KÝ (SONG NGỮ HOÀN TOÀN)
   const handleDeletePass = async (pass: DepartmentPassRecord) => {
-    const pin = prompt(
-      `🔐 BẢO MẬT XÓA NHẬT KÝ\n\nBạn đang yêu cầu xóa lượt di chuyển của "${pass.employeeName}" (${pass.date} lúc ${pass.timestamp}).\nVui lòng nhập Mật khẩu Quản trị để xác nhận:`
-    );
+    const promptMsg = lang === 'th'
+      ? `🔐 ความปลอดภัย: ลบบันทึกการเดินทาง\n\nคุณกำลังต้องการลบบันทึกของ "${pass.employeeName}" (${pass.date} เวลา ${pass.timestamp})\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ เพื่อยืนยัน:`
+      : `🔐 BẢO MẬT XÓA NHẬT KÝ\n\nBạn đang yêu cầu xóa lượt di chuyển của "${pass.employeeName}" (${pass.date} lúc ${pass.timestamp}).\nVui lòng nhập Mật khẩu Quản trị để xác nhận:`;
 
+    const pin = prompt(promptMsg);
     if (pin === null) return;
 
     if (pin.trim() !== '8888') {
       soundFX.playError();
-      alert('❌ Mật khẩu quản trị không đúng! Không thể xóa nhật ký này.');
+      alert(lang === 'th' ? '❌ รหัสผ่านไม่ถูกต้อง! ไม่สามารถลบบันทึกนี้ได้' : '❌ Mật khẩu quản trị không đúng! Không thể xóa nhật ký này.');
       return;
     }
 
-    if (confirm(`Xác nhận xóa vĩnh viễn lượt di chuyển của ${pass.employeeName}?`)) {
+    const confirmMsg = lang === 'th'
+      ? `ยืนยันการลบบันทึกการเดินทางของ ${pass.employeeName} อย่างถาวร?`
+      : `Xác nhận xóa vĩnh viễn lượt di chuyển của ${pass.employeeName}?`;
+
+    if (confirm(confirmMsg)) {
       setPasses(prev => prev.filter(p => p.id !== pass.id));
       await deleteDepartmentPassInCloud(pass.id);
       soundFX.playScanSuccess();
     }
   };
 
+  // XUẤT EXCEL (SONG NGỮ HOÀN TOÀN)
   const handleExport = () => {
     if (passes.length === 0) {
-      alert('Chưa có dữ liệu nhật ký ra/vào để xuất file!');
+      alert(lang === 'th' ? 'ไม่มีข้อมูลบันทึก เข้า-ออก เพื่อส่งออกไฟล์!' : 'Chưa có dữ liệu nhật ký ra/vào để xuất file!');
       return;
     }
-    const pin = prompt('🔐 BẢO MẬT XUẤT NHẬT KÝ\n\nVui lòng nhập Mật khẩu Quản trị để tải file Excel:');
+
+    const promptMsg = lang === 'th'
+      ? '🔐 ความปลอดภัย: ส่งออกบันทึก เข้า-ออก\n\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ เพื่อดาวน์โหลดไฟล์ Excel:'
+      : '🔐 BẢO MẬT XUẤT NHẬT KÝ\n\nVui lòng nhập Mật khẩu Quản trị để tải file Excel:';
+
+    const pin = prompt(promptMsg);
     if (pin === null) return;
+
     if (pin.trim() !== '8888') {
       soundFX.playError();
-      alert('❌ Mật khẩu không đúng! Bạn không có quyền tải file này.');
+      alert(lang === 'th' ? '❌ รหัสผ่านไม่ถูกต้อง! คุณไม่มีสิทธิ์ดาวน์โหลดไฟล์นี้' : '❌ Mật khẩu không đúng! Bạn không có quyền tải file này.');
       return;
     }
+
+    soundFX.playScanSuccess();
     exportDepartmentPassToExcel(passes);
   };
 
-  // Helper render popup filter checkbox cho từng cột
+  // Helper render popup filter checkbox cho từng cột (SONG NGỮ HOÀN TOÀN)
   const renderMultiSelectFilter = (
     colKey: string,
     title: string,
@@ -251,10 +271,10 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
             e.stopPropagation();
             setOpenFilterCol(isOpen ? null : colKey);
           }}
-          className={`p-1 rounded hover:bg-slate-200 transition-colors ${
+          className={`p-1 rounded hover:bg-slate-200 transition-colors cursor-pointer ${
             hasFilter ? 'text-rose-600 bg-rose-50 ring-1 ring-rose-400 font-bold' : 'text-slate-400'
           }`}
-          title={`Lọc theo ${title}`}
+          title={`${lang === 'th' ? 'กรองตาม' : 'Lọc theo'} ${title}`}
         >
           <Filter className="w-3.5 h-3.5" />
         </button>
@@ -266,19 +286,21 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
             className="absolute left-0 mt-2 w-64 bg-white border border-slate-300 rounded-xl shadow-2xl p-3 z-50 text-slate-800 text-xs normal-case font-normal animate-in fade-in zoom-in-95 duration-100"
           >
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <span className="font-bold text-slate-900">Lọc {title}</span>
-              <button onClick={() => setOpenFilterCol(null)} className="text-slate-400 hover:text-slate-700">
+              <span className="font-bold text-slate-900">{lang === 'th' ? 'กรอง' : 'Lọc'} {title}</span>
+              <button onClick={() => setOpenFilterCol(null)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
             <div className="py-2 flex items-center justify-between text-[11px] text-blue-700 font-bold">
-              <button type="button" onClick={toggleAll} className="hover:underline">
-                {selectedValues.length === options.length ? 'Bỏ chọn hết' : 'Chọn tất cả'}
+              <button type="button" onClick={toggleAll} className="hover:underline cursor-pointer">
+                {selectedValues.length === options.length 
+                  ? (lang === 'th' ? 'ยกเลิกทั้งหมด' : 'Bỏ chọn hết') 
+                  : (lang === 'th' ? 'เลือกทั้งหมด' : 'Chọn tất cả')}
               </button>
               {hasFilter && (
-                <button type="button" onClick={() => setSelectedValues([])} className="text-rose-600 hover:underline">
-                  Xóa lọc ({selectedValues.length})
+                <button type="button" onClick={() => setSelectedValues([])} className="text-rose-600 hover:underline cursor-pointer">
+                  {lang === 'th' ? `ล้างตัวกรอง (${selectedValues.length})` : `Xóa lọc (${selectedValues.length})`}
                 </button>
               )}
             </div>
@@ -304,9 +326,9 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
               <button
                 type="button"
                 onClick={() => setOpenFilterCol(null)}
-                className="px-3 py-1 bg-emerald-600 text-white rounded-lg font-bold text-xs shadow-xs"
+                className="px-3 py-1 bg-emerald-600 text-white rounded-lg font-bold text-xs shadow-xs cursor-pointer"
               >
-                Áp dụng
+                {lang === 'th' ? 'นำไปใช้' : 'Áp dụng'}
               </button>
             </div>
           </div>
@@ -331,7 +353,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
 
           <button
             onClick={handleExport}
-            className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm w-full sm:w-auto"
+            className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm w-full sm:w-auto cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4" />
             <span>{t.pass_btn_export}</span>
@@ -345,7 +367,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
             <span>{t.pass_station_setup}</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* 1. CHỌN NHÀ MÁY (BẮT BUỘC) */}
             <div>
               <label className="block text-xs font-black text-slate-800 mb-1 flex items-center gap-1">
@@ -370,7 +392,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
               <select
                 value={fromDept}
                 onChange={(e) => setFromDept(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-500 shadow-sm"
+                className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-500 shadow-sm cursor-pointer"
               >
                 {COMMON_DEPARTMENTS.map(d => (
                   <option key={d} value={d}>{d}</option>
@@ -385,7 +407,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
               <select
                 value={toDept}
                 onChange={(e) => setToDept(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-500 shadow-sm"
+                className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 font-medium focus:outline-none focus:border-emerald-500 shadow-sm cursor-pointer"
               >
                 {COMMON_DEPARTMENTS.map(d => (
                   <option key={d} value={d}>{d}</option>
@@ -407,7 +429,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                     setReason(r);
                     setCustomReason('');
                   }}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs transition-all ${
+                  className={`px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                     reason === r && !customReason
                       ? 'bg-emerald-600 text-white font-bold shadow-sm'
                       : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-300 font-medium'
@@ -429,7 +451,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
           <div className="pt-1">
             <button
               onClick={handleStartScan}
-              className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/25 transition-all"
+              className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/25 transition-all cursor-pointer"
             >
               <ScanLine className="w-5 h-5 animate-pulse" />
               <span>{t.pass_btn_scan_in}</span>
@@ -466,14 +488,14 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                     {item.fromDepartment} &rarr; <span className="text-emerald-700 font-bold">{item.toDepartment}</span>
                   </p>
                   <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                    {lang === 'th' ? 'เข้า:' : 'Vào:'} <strong className="font-mono text-slate-700">{item.timestamp}</strong> ({item.date})
+                    {lang === 'th' ? 'เวลาเข้า:' : 'Vào:'} <strong className="font-mono text-slate-700">{item.timestamp}</strong> ({item.date})
                   </p>
                 </div>
 
                 <button
                   onClick={() => handleMarkReturned(item)}
-                  title="Xác nhận nhân viên đã rời khỏi và trở về"
-                  className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0 flex items-center gap-1 transition-all shadow-sm"
+                  title={lang === 'th' ? 'ยืนยันพนักงานกลับแล้ว' : 'Xác nhận nhân viên đã rời khỏi và trở về'}
+                  className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0 flex items-center gap-1 transition-all shadow-sm cursor-pointer"
                 >
                   <RotateCcw className="w-3 h-3" />
                   <span>{t.pass_btn_return}</span>
@@ -513,19 +535,19 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
             <div className="flex p-0.5 bg-white border border-slate-300 rounded-xl text-xs shadow-2xs">
               <button
                 onClick={() => setStatusFilter('all')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${statusFilter === 'all' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${statusFilter === 'all' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 {t.pass_tab_all} ({passes.length})
               </button>
               <button
                 onClick={() => setStatusFilter('active')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${statusFilter === 'active' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${statusFilter === 'active' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 {t.pass_tab_active} ({activeOccupants.length})
               </button>
               <button
                 onClick={() => setStatusFilter('returned')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${statusFilter === 'returned' ? 'bg-slate-700 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${statusFilter === 'returned' ? 'bg-slate-700 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 {t.pass_tab_returned} ({passes.filter(p => p.status === 'returned').length})
               </button>
@@ -536,7 +558,9 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
         {filteredPasses.length === 0 ? (
           <div className="p-8 sm:p-12 text-center space-y-2">
             <Building2 className="w-12 h-12 text-slate-300 mx-auto" />
-            <p className="text-base font-bold text-slate-800">Không tìm thấy nhật ký di chuyển phù hợp</p>
+            <p className="text-base font-bold text-slate-800">
+              {lang === 'th' ? 'ไม่พบประวัติการเดินทางที่ตรงกัน' : 'Không tìm thấy nhật ký di chuyển phù hợp'}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -636,7 +660,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                         <div className="font-bold text-emerald-700">{p.timestamp}</div>
                         <div className="text-[11px] text-slate-400">{p.date}</div>
                       </td>
-                      {/* CỘT THỜI GIAN RA: ĐỔI "Đang ở xưởng" THÀNH "Chưa Check-Out" */}
+                      {/* CỘT THỜI GIAN RA: HIỂN THỊ SONG NGỮ */}
                       <td className="p-3 font-mono">
                         {isNotCheckedOut ? (
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-sans font-bold text-[11px] border border-amber-300">
@@ -655,17 +679,17 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                           {isNotCheckedOut && (
                             <button
                               onClick={() => handleMarkReturned(p)}
-                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors shadow-xs"
-                              title="Xác nhận check-out ra về (Cần mã thẻ hoặc pass 8888)"
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors shadow-xs cursor-pointer"
+                              title={lang === 'th' ? 'ยืนยันเช็คเอาท์กลับ' : 'Xác nhận check-out ra về'}
                             >
-                              Về
+                              {t.pass_btn_return}
                             </button>
                           )}
 
                           <button
                             onClick={() => handleDeletePass(p)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                            title="Xóa nhật ký này (Cần pass 8888)"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title={lang === 'th' ? 'ลบรายการนี้' : 'Xóa nhật ký này'}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
