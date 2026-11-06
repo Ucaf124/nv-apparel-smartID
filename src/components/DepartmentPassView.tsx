@@ -18,6 +18,7 @@ import {
   Check,
   X
 } from 'lucide-react';
+import { translations, Language } from '../i18n/translations';
 import { DepartmentPassRecord, Employee, maskEmployeeCode } from '../types';
 import { COMMON_DEPARTMENTS, COMMON_MOVE_REASONS } from '../data/mockEmployees';
 import { exportDepartmentPassToExcel } from '../utils/exportExcel';
@@ -35,14 +36,17 @@ interface DepartmentPassViewProps {
     reason: string;
     passType: 'check_in' | 'check_out';
   }) => void;
+  lang?: Language;
 }
 
 export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
   employees,
   passes,
   setPasses,
-  onOpenScannerForPass
+  onOpenScannerForPass,
+  lang = 'vi' // Mặc định 'vi'
 }) => {
+  const t = translations[lang];
   const [fromDept, setFromDept] = useState(COMMON_DEPARTMENTS[5]);
   const [toDept, setToDept] = useState(COMMON_DEPARTMENTS[0]);
   const [reason, setReason] = useState(COMMON_MOVE_REASONS[2]);
@@ -86,7 +90,10 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
   const uniqueRoutes = useMemo(() => Array.from(new Set(passes.map(p => `${p.fromDepartment} → ${p.toDepartment}`))), [passes]);
   const uniqueReasons = useMemo(() => Array.from(new Set(passes.map(p => p.reason))), [passes]);
   const uniqueInDates = useMemo(() => Array.from(new Set(passes.map(p => p.date))), [passes]);
-  const uniqueOutStatuses = useMemo(() => ['Chưa Check-Out', 'Đã về'], []);
+  const uniqueOutStatuses = useMemo(() => [
+    lang === 'th' ? 'ยังไม่เช็คเอาท์' : 'Chưa Check-Out',
+    lang === 'th' ? 'กลับแล้ว' : 'Đã về'
+  ], [lang]);
 
   // Lọc chồng lọc (Multi-level combine filters)
   const filteredPasses = useMemo(() => {
@@ -121,7 +128,9 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
       if (selectedInDates.length > 0 && !selectedInDates.includes(p.date)) return false;
 
       // 7. Lọc cột Trạng thái Ra
-      const outStatus = p.status === 'active' ? 'Chưa Check-Out' : 'Đã về';
+      const outStatus = p.status === 'active' 
+        ? (lang === 'th' ? 'ยังไม่เช็คเอาท์' : 'Chưa Check-Out') 
+        : (lang === 'th' ? 'กลับแล้ว' : 'Đã về');
       if (selectedOutStatuses.length > 0 && !selectedOutStatuses.includes(outStatus)) return false;
 
       
@@ -313,10 +322,10 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-              Số Hóa Giấy Ra Vào Bộ Phận
+              {t.pass_banner_badge}
             </span>
             <h2 className="text-xl font-extrabold text-slate-900 mt-1">
-              Check-In / Check-Out Giữa Các Bộ Phận & Xưởng
+              {t.pass_title}
             </h2>
           </div>
 
@@ -325,7 +334,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
             className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm w-full sm:w-auto"
           >
             <FileSpreadsheet className="w-4 h-4" />
-            Xuất Nhật Ký Ra Vào (Excel)
+            <span>{t.pass_btn_export}</span>
           </button>
         </div>
 
@@ -333,14 +342,14 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-4">
           <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
             <MapPin className="w-4 h-4 text-emerald-600" />
-            Thiết Lập Chốt Quét Thẻ Nhanh:
+            <span>{t.pass_station_setup}</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* 1. CHỌN NHÀ MÁY (BẮT BUỘC) */}
             <div>
               <label className="block text-xs font-black text-slate-800 mb-1 flex items-center gap-1">
-                <span>🏢 Nhà Máy (Chốt Quẹt Thẻ)</span>
+                <span>🏢 {t.pass_factory_label}</span>
                 <span className="text-rose-500">*</span>
               </label>
               <select
@@ -349,14 +358,14 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                 onChange={(e) => setSelectedFactory(e.target.value as 'NV1' | 'NV2')}
                 className="w-full px-3 py-2.5 bg-blue-50/80 border-2 border-blue-400 rounded-xl text-xs text-blue-950 font-black focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-xs cursor-pointer"
               >
-                <option value="NV1">🏭 Nhà máy NV1 (Factory 1)</option>
-                <option value="NV2">🏭 Nhà máy NV2 (Factory 2)</option>
+                <option value="NV1">{lang === 'th' ? '🏭 โรงงาน NV1 (Factory 1)' : '🏭 Nhà máy NV1 (Factory 1)'}</option>
+                <option value="NV2">{lang === 'th' ? '🏭 โรงงาน NV2 (Factory 2)' : '🏭 Nhà máy NV2 (Factory 2)'}</option>
               </select>
             </div>
             
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Từ Bộ Phận (Nơi xuất phát)
+                {t.pass_from_dept} <span className="text-rose-500">*</span>
               </label>
               <select
                 value={fromDept}
@@ -371,7 +380,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Đến Bộ Phận / Xưởng (Điểm đến)
+                {t.pass_to_dept} <span className="text-rose-500">*</span>
               </label>
               <select
                 value={toDept}
@@ -387,7 +396,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
 
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Lý Do Di Chuyển (Chọn nhanh hoặc gõ):
+              {t.pass_reason_label}
             </label>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {COMMON_MOVE_REASONS.slice(0, 6).map(r => (
@@ -412,7 +421,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
               type="text"
               value={customReason}
               onChange={(e) => setCustomReason(e.target.value)}
-              placeholder="Hoặc gõ lý do di chuyển khác..."
+              placeholder={t.pass_reason_placeholder}
               className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-sm"
             />
           </div>
@@ -423,7 +432,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
               className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/25 transition-all"
             >
               <ScanLine className="w-5 h-5 animate-pulse" />
-              <span>QUÉT MÃ THẺ GHI NHẬN VÀO BỘ PHẬN</span>
+              <span>{t.pass_btn_scan_in}</span>
             </button>
           </div>
         </div>
@@ -435,9 +444,9 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
             <div className="flex items-center gap-2 text-amber-900 font-extrabold text-sm">
               <ShieldAlert className="w-4 h-4 text-amber-600 animate-pulse" />
-              <span>DANH SÁCH NHÂN SỰ CHƯA CHECK-OUT ({activeOccupants.length})</span>
+              <span>{t.pass_active_occupants_title} ({activeOccupants.length})</span>
             </div>
-            <span className="text-xs text-amber-700">Nhấn &ldquo;Xác nhận về&rdquo; khi công nhân rời xưởng</span>
+            <span className="text-xs text-amber-700">{t.pass_active_occupants_hint}</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
@@ -457,7 +466,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                     {item.fromDepartment} &rarr; <span className="text-emerald-700 font-bold">{item.toDepartment}</span>
                   </p>
                   <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                    Vào: <strong className="font-mono text-slate-700">{item.timestamp}</strong> ({item.date})
+                    {lang === 'th' ? 'เข้า:' : 'Vào:'} <strong className="font-mono text-slate-700">{item.timestamp}</strong> ({item.date})
                   </p>
                 </div>
 
@@ -467,7 +476,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                   className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0 flex items-center gap-1 transition-all shadow-sm"
                 >
                   <RotateCcw className="w-3 h-3" />
-                  <span>Về</span>
+                  <span>{t.pass_btn_return}</span>
                 </button>
               </div>
             ))}
@@ -481,9 +490,9 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
         <div className="p-3.5 sm:p-4 border-b border-slate-200 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-50/70">
           <div className="flex items-center gap-3 flex-1">
             <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 shrink-0 shadow-2xs">
-              <span className="text-xs font-bold text-emerald-900">Hôm nay:</span>
+              <span className="text-xs font-bold text-emerald-900">{t.pass_today_label}</span>
               <span className="text-base font-black text-emerald-700 font-mono">{todayPassCount}</span>
-              <span className="text-[10px] text-emerald-600">lượt</span>
+              <span className="text-[10px] text-emerald-600">{lang === 'th' ? 'ครั้ง' : 'lượt'}</span>
             </div>
 
             <div className="relative flex-1 max-w-sm">
@@ -492,7 +501,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm theo tên, mã NV, bộ phận, lý do..."
+                placeholder={lang === 'th' ? 'ค้นหาตามชื่อ, รหัส, แผนก, เหตุผล...' : 'Tìm theo tên, mã NV, bộ phận, lý do...'}
                 className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-sm"
               />
             </div>
@@ -506,19 +515,19 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                 onClick={() => setStatusFilter('all')}
                 className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${statusFilter === 'all' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
               >
-                Tất cả ({passes.length})
+                {t.pass_tab_all} ({passes.length})
               </button>
               <button
                 onClick={() => setStatusFilter('active')}
                 className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${statusFilter === 'active' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
               >
-                Chưa Check-Out ({activeOccupants.length})
+                {t.pass_tab_active} ({activeOccupants.length})
               </button>
               <button
                 onClick={() => setStatusFilter('returned')}
                 className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${statusFilter === 'returned' ? 'bg-slate-700 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
               >
-                Đã về ({passes.filter(p => p.status === 'returned').length})
+                {t.pass_tab_returned} ({passes.filter(p => p.status === 'returned').length})
               </button>
             </div>
           </div>
@@ -534,56 +543,56 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-700 font-extrabold select-none">
-                  <th className="p-3 w-12 text-center">STT</th>
+                  <th className="p-3 w-12 text-center">{t.att_col_stt}</th>
                   
                   <th className="p-3 w-28">
                     <div className="flex items-center">
-                      <span>Nhà Máy</span>
-                      {renderMultiSelectFilter('factory', 'Nhà Máy', uniqueFactories, selectedFactoryFilter, setSelectedFactoryFilter)}
+                      <span>{t.pass_col_factory}</span>
+                      {renderMultiSelectFilter('factory', t.pass_col_factory, uniqueFactories, selectedFactoryFilter, setSelectedFactoryFilter)}
                     </div>
                   </th>
 
                   {/* CỘT MÃ & HỌ TÊN + BỘ LỌC MULTI-SELECT */}
                   <th className="p-3">
                     <div className="flex items-center">
-                      <span>Mã & Họ Tên NV</span>
-                      {renderMultiSelectFilter('employee', 'Nhân Sự', uniqueEmployees, selectedEmployees, setSelectedEmployees)}
+                      <span>{t.pass_col_employee}</span>
+                      {renderMultiSelectFilter('employee', t.pass_col_employee, uniqueEmployees, selectedEmployees, setSelectedEmployees)}
                     </div>
                   </th>
 
                   {/* CỘT LỘ TRÌNH + BỘ LỌC MULTI-SELECT */}
                   <th className="p-3">
                     <div className="flex items-center">
-                      <span>Lộ Trình Di Chuyển</span>
-                      {renderMultiSelectFilter('route', 'Lộ Trình', uniqueRoutes, selectedRoutes, setSelectedRoutes)}
+                      <span>{t.pass_col_route}</span>
+                      {renderMultiSelectFilter('route', t.pass_col_route, uniqueRoutes, selectedRoutes, setSelectedRoutes)}
                     </div>
                   </th>
 
                   {/* CỘT LÝ DO + BỘ LỌC MULTI-SELECT */}
                   <th className="p-3">
                     <div className="flex items-center">
-                      <span>Lý Do</span>
-                      {renderMultiSelectFilter('reason', 'Lý Do', uniqueReasons, selectedReasons, setSelectedReasons)}
+                      <span>{t.pass_col_reason}</span>
+                      {renderMultiSelectFilter('reason', t.pass_col_reason, uniqueReasons, selectedReasons, setSelectedReasons)}
                     </div>
                   </th>
 
                   {/* CỘT THỜI GIAN VÀO + BỘ LỌC MULTI-SELECT THEO NGÀY */}
                   <th className="p-3">
                     <div className="flex items-center">
-                      <span>Thời Gian Vào</span>
-                      {renderMultiSelectFilter('inDate', 'Ngày Vào', uniqueInDates, selectedInDates, setSelectedInDates)}
+                      <span>{t.pass_col_time_in}</span>
+                      {renderMultiSelectFilter('inDate', t.pass_col_time_in, uniqueInDates, selectedInDates, setSelectedInDates)}
                     </div>
                   </th>
 
                   {/* CỘT THỜI GIAN RA + BỘ LỌC MULTI-SELECT TRẠNG THÁI */}
                   <th className="p-3">
                     <div className="flex items-center">
-                      <span>Thời Gian Ra</span>
-                      {renderMultiSelectFilter('outStatus', 'Trạng Thái Ra', uniqueOutStatuses, selectedOutStatuses, setSelectedOutStatuses)}
+                      <span>{t.pass_col_time_out}</span>
+                      {renderMultiSelectFilter('outStatus', t.pass_col_time_out, uniqueOutStatuses, selectedOutStatuses, setSelectedOutStatuses)}
                     </div>
                   </th>
 
-                  <th className="p-3 text-center w-24">Thao Tác</th>
+                  <th className="p-3 text-center w-24">{t.att_col_action}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -632,7 +641,7 @@ export const DepartmentPassView: React.FC<DepartmentPassViewProps> = ({
                         {isNotCheckedOut ? (
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-sans font-bold text-[11px] border border-amber-300">
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
-                            Chưa Check-Out
+                            {t.pass_tab_active}
                           </span>
                         ) : (
                           <div>
