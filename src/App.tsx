@@ -813,6 +813,7 @@ export default function App() {
             employees={employees}
             setEmployees={handleSetEmployees}
             onViewCard={(emp) => setCardModalEmployee(emp)}
+            lang={lang}
           />
         )}
       </main>
