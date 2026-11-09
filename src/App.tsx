@@ -718,7 +718,7 @@ export default function App() {
             <UserCheck className="w-4 h-4" />
             <span>{t.tab_attendance}</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-mono font-bold">
-              {sessions.length}
+              {sessions.filter(s => s.date >= new Date().toISOString().split('T')[0]).length}
             </span>
           </button>
 
@@ -733,7 +733,11 @@ export default function App() {
             <CalendarDays className="w-4 h-4" />
             <span>{t.tab_room_booking}</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-mono font-bold">
-              {bookings.filter(b => b.status !== 'cancelled' && b.status !== 'completed').length}
+              {bookings.filter(b => {
+                const today = new Date().toISOString().split('T')[0];
+                const endDate = b.endDate || b.date;
+                return endDate >= today && b.status !== 'cancelled' && b.status !== 'completed';
+              }).length}
             </span>
           </button>
           
