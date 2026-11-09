@@ -27,21 +27,6 @@ import { exportRoomBookingsToExcel, exportCateringReportToExcel } from '../utils
 import { soundFX } from '../utils/audio';
 import { deleteRoomBookingInCloud, saveRoomBookingToCloud, saveTrainingSessionToCloud } from '../services/firebaseSync';
 
-// States cho tính năng Phê Duyệt Hàng Loạt
-  const [showBatchModal, setShowBatchModal] = useState(false);
-  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
-  const [batchUser, setBatchUser] = useState('');
-  const [batchPass, setBatchPass] = useState('');
-  const [batchError, setBatchError] = useState('');
-
-  // Danh sách các cuộc họp đang CHỜ DUYỆT (từ hôm nay trở đi)
-  const pendingBookings = useMemo(() => {
-    return bookings.filter(b => {
-      const end = b.endDate || b.date;
-      return b.status === 'pending' && end >= todayStr;
-    });
-  }, [bookings, todayStr]);
-
 // Danh sách tài khoản có quyền duyệt đặt phòng họp
 const APPROVERS = [
   { username: 'duypt', pass: 'duypt@356', name: 'Phan Thị Mỹ Duyên', code: '210190653' },
@@ -70,14 +55,13 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
   const t = translations[lang];
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // Chế độ xem: 'calendar' (Lịch tháng) hoặc 'list' (Chi tiết theo ngày)
+  // 1. TẤT CẢ CÁC HOOKS ĐƯỢC ĐẶT CHUẨN Ở ĐẦU COMPONENT
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedRoomId, setSelectedRoomId] = useState<string>('vinh_ha_long');
 
-  // Điều hướng tháng trong Lịch Tháng
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth()); // 0 - 11
+  const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
 
   // Form states đặt phòng
   const [showBookingModal, setShowBookingModal] = useState(false);
@@ -89,7 +73,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
   const [bookDept, setBookDept] = useState('');
   const [bookPhone, setBookPhone] = useState('');
   
-  // Đặt phòng theo dải ngày: Từ ngày -> Đến ngày
   const [bookStartDate, setBookStartDate] = useState(todayStr);
   const [bookEndDate, setBookEndDate] = useState(todayStr);
   
@@ -99,7 +82,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
   const [selectedEquipments, setSelectedEquipments] = useState<string[]>(['Máy chiếu 4K Ultra HD', 'Bảng kính']);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // States cho tính năng chuẩn bị thức ăn / nước uống (F&B)
+  // States F&B
   const [hasCatering, setHasCatering] = useState(false);
   const [showCateringModal, setShowCateringModal] = useState(false);
   const [cateringCostCenter, setCateringCostCenter] = useState('');
@@ -113,11 +96,18 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
   const [cateringCost, setCateringCost] = useState('');
   const [cateringLocation, setCateringLocation] = useState('');
 
-  // Popup duyệt đăng nhập
+  // States duyệt đơn lẻ
   const [approvingBooking, setApprovingBooking] = useState<RoomBooking | null>(null);
   const [approverUser, setApproverUser] = useState('');
   const [approverPass, setApproverPass] = useState('');
   const [approverError, setApproverError] = useState('');
+
+  // States duyệt hàng loạt
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
+  const [batchUser, setBatchUser] = useState('');
+  const [batchPass, setBatchPass] = useState('');
+  const [batchError, setBatchError] = useState('');
 
   const currentRoom = PRESET_ROOMS.find(r => r.id === selectedRoomId) || PRESET_ROOMS[0];
 
@@ -147,6 +137,14 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     return dateBookings.filter(b => b.roomId === selectedRoomId);
   }, [dateBookings, selectedRoomId]);
 
+  // Danh sách các cuộc họp đang CHỜ DUYỆT (từ hôm nay trở đi)
+  const pendingBookings = useMemo(() => {
+    return bookings.filter(b => {
+      const end = b.endDate || b.date;
+      return b.status === 'pending' && end >= todayStr;
+    });
+  }, [bookings, todayStr]);
+
   // HÀM TẠO ĐẶT PHÒNG
   const handleCreateBooking = (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,18 +159,16 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       return;
     }
     if (!bookEmpCode.trim()) {
-      setFormError(lang === 'th' ? 'กรุณากรอกหรือสแกนรหัสบัตรของผู้จอง' : 'Vui lòng nhập hoặc quét mã thẻ người đặt');
+      setFormError(lang === 'th' ? 'กรุณากรอก hoặc สแกนรหัสบัตรของผู้จอง' : 'Vui lòng nhập hoặc quét mã thẻ người đặt');
       return;
     }
 
-    // 1. Chặn đặt ngày quá khứ
     if (bookStartDate < todayStr) {
       soundFX.playError();
       setFormError(lang === 'th' ? 'ไม่สามารถจองห้องสำหรับวันที่ผ่านมาแล้วได้!' : 'Không thể đặt phòng cho ngày trong quá khứ! Vui lòng chọn từ hôm nay trở đi.');
       return;
     }
 
-    // 2. Chặn đặt giờ quá khứ nếu là hôm nay
     if (bookStartDate === todayStr) {
       const d = new Date();
       const nowHM = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
@@ -192,7 +188,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       return;
     }
 
-    // Kiểm tra trùng lịch
     const isConflict = bookings.some(b => {
       if (b.roomId !== modalRoomId || b.status === 'cancelled' || b.status === 'rejected') return false;
 
@@ -277,7 +272,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     }
 
     const promptMsg = lang === 'th'
-      ? '🔐 ความปลอดภัย: ส่งออกตารางห้องประชุม\n\nไฟล์ Excel มีข้อมูลผู้จองและรหัสบัตรครบถ้วน\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ เพื่อดาวน์โหลด:'
+      ? '🔐 ความปลอดภัย: ส่งออกตารางห้องประชุม\n\nไฟล์ Excel มีข้อมูลผู้จองและรหัสบัตรครบถ้วน\nกรุณาป้อนรหัสผ่านผู้ดูแลระบบ (8888) เพื่อดาวน์โหลด:'
       : '🔐 BẢO MẬT XUẤT LỊCH PHÒNG HỌP\n\nFile Excel chứa đầy đủ danh sách cuộc họp, mã thẻ người đặt và phiếu F&B.\nVui lòng nhập Mật khẩu Quản trị để tải:';
 
     const pin = prompt(promptMsg);
@@ -335,7 +330,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     exportCateringReportToExcel(bookings);
   };
   
-  // HÀM PHÊ DUYỆT ĐẶT PHÒNG
+  // HÀM PHÊ DUYỆT ĐẶT PHÒNG ĐƠN LẺ
   const handleApproveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setApproverError('');
@@ -404,7 +399,7 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     );
   };
 
-  // HÀM PHÊ DUYỆT HÀNG LOẠT (CHỌN CHECKBOX TỪNG CUỘC HỌP)
+  // HÀM PHÊ DUYỆT HÀNG LOẠT
   const handleBatchApproveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBatchError('');
@@ -429,7 +424,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     const approverText = `${matchedApprover.name} (${matchedApprover.username})`;
 
     try {
-      // 1. Cập nhật các booking được chọn thành confirmed
       const updatedBookingsList: RoomBooking[] = [];
       const autoSessionsToCreate: TrainingSession[] = [];
 
@@ -443,7 +437,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
           };
           updatedBookingsList.push(updated);
 
-          // Tạo buổi điểm danh tự động tương ứng
           autoSessionsToCreate.push({
             id: `session_auto_${updated.id}`,
             title: updated.title,
@@ -462,12 +455,10 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
         return b;
       }));
 
-      // 2. Thêm các buổi họp tự động vào state sessions
       if (setSessions && autoSessionsToCreate.length > 0) {
         setSessions(prev => [...autoSessionsToCreate, ...prev]);
       }
 
-      // 3. ĐỒNG BỘ LÊN CLOUD FIREBASE
       for (const b of updatedBookingsList) {
         await saveRoomBookingToCloud(b);
       }
@@ -593,11 +584,12 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
               </button>
             </div>
 
+            {/* NÚT DUYỆT HÀNG LOẠT */}
             {pendingBookings.length > 0 && (
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedBatchIds(pendingBookings.map(b => b.id)); // Mặc định chọn tất cả
+                  setSelectedBatchIds(pendingBookings.map(b => b.id));
                   setShowBatchModal(true);
                   setBatchError('');
                 }}
@@ -678,7 +670,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
       {/* ================= GIAO DIỆN 1: LỊCH XEM THEO THÁNG (MONTH CALENDAR) ================= */}
       {viewMode === 'calendar' && (
         <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
-          {/* Header điều hướng Tháng */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-200">
             <div className="flex items-center gap-3">
               <h3 className="font-black text-base sm:text-lg text-slate-900">
@@ -716,7 +707,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
             </div>
           </div>
 
-          {/* Lưới Lịch Tháng (Thứ 2 -> Chủ Nhật) */}
           <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {weekDays.map((dayName) => (
               <div key={dayName} className="text-center font-bold text-xs py-2 text-slate-500 bg-slate-50 rounded-lg">
@@ -776,7 +766,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                     )}
                   </div>
 
-                  {/* Danh sách các cuộc họp mini */}
                   <div className="space-y-1 my-1 overflow-y-auto max-h-[70px] sm:max-h-[85px]">
                     {cellBookings.slice(0, 3).map(b => {
                       const isConfirmed = b.status === 'confirmed';
@@ -799,7 +788,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                               {isMultiDay && <span className="text-purple-600 font-sans">📅 {lang === 'th' ? 'หลายวัน' : 'Nhiều ngày'}</span>}
                             </div>
 
-                            {/* BIỂU TƯỢNG ĐẶT THỨC ĂN */}
                             {b.catering?.hasCatering && (
                               <span className="text-xs" title={lang === 'th' ? 'มีรายการสั่งอาหาร & เครื่องดื่ม' : 'Có phiếu chuẩn bị thức ăn & nước uống'}>
                                 🍱
@@ -926,7 +914,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                           <span><strong>{t.room_participants}</strong> {booking.participantsCount}</span>
                         </div>
 
-                        {/* KHUNG HIỂN THỊ THÔNG TIN PHIẾU THỨC ĂN (NẾU CÓ) */}
                         {booking.catering?.hasCatering && (
                           <div className="mt-2 p-2.5 rounded-xl bg-amber-50/90 border border-amber-200 text-xs text-amber-950 space-y-1 animate-in fade-in">
                             <div className="flex items-center gap-1.5 font-black text-amber-900">
@@ -951,7 +938,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                         )}
                       </div>
 
-                      {/* Nút thao tác: Duyệt & Hủy */}
                       <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end border-t md:border-t-0 pt-2 md:pt-0 border-slate-200">
                         {isPending && (
                           <button
@@ -1102,7 +1088,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 </div>
               </div>
 
-              {/* CHỌN TỪ NGÀY -> ĐẾN NGÀY */}
               <div className="grid grid-cols-2 gap-2 p-2.5 bg-blue-50/60 border border-blue-200 rounded-xl">
                 <div>
                   <label className="block text-blue-900 mb-1 font-bold">{lang === 'th' ? 'ตั้งแต่วันที่' : 'Từ Ngày'}</label>
@@ -1166,7 +1151,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 />
               </div>
 
-              {/* NÚT TÙY CHỌN: CHUẨN BỊ THỨC ĂN / NƯỚC UỐNG */}
               <div className="pt-1 border-t border-slate-200">
                 <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
@@ -1300,6 +1284,171 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                   className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black transition-all shadow-sm cursor-pointer"
                 >
                   {lang === 'th' ? 'อนุมัติ & สร้างฟอร์ม' : 'Xác Nhận & Tạo Form'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL DUYỆT HÀNG LOẠT ================= */}
+      {showBatchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/65 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 w-full max-w-xl shadow-2xl space-y-4 text-slate-900 max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                  🔔
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900">
+                    {lang === 'th' ? 'ศูนย์อนุมัติการจองห้องประชุม' : 'Trung Tâm Phê Duyệt Đặt Phòng'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {lang === 'th' ? `มี ${pendingBookings.length} รายการกำลังรออนุมัติ` : `Hiện có ${pendingBookings.length} cuộc họp đang chờ phê duyệt`}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowBatchModal(false)}
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {batchError && (
+              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold">
+                ❌ {batchError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between text-xs font-bold px-1">
+              <label className="flex items-center gap-2 cursor-pointer text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={selectedBatchIds.length === pendingBookings.length && pendingBookings.length > 0}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedBatchIds(pendingBookings.map(b => b.id));
+                    } else {
+                      setSelectedBatchIds([]);
+                    }
+                  }}
+                  className="w-4 h-4 text-amber-600 rounded"
+                />
+                <span>{lang === 'th' ? 'เลือกทั้งหมด' : 'Chọn tất cả'} ({selectedBatchIds.length}/{pendingBookings.length})</span>
+              </label>
+
+              {selectedBatchIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedBatchIds([])}
+                  className="text-slate-400 hover:text-rose-600"
+                >
+                  {lang === 'th' ? 'ยกเลิกการเลือก' : 'Bỏ chọn hết'}
+                </button>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-[45vh]">
+              {pendingBookings.map(b => {
+                const isChecked = selectedBatchIds.includes(b.id);
+                const isMultiDay = b.endDate && b.endDate !== b.date;
+
+                return (
+                  <div
+                    key={b.id}
+                    onClick={() => {
+                      setSelectedBatchIds(prev => 
+                        prev.includes(b.id) ? prev.filter(id => id !== b.id) : [...prev, b.id]
+                      );
+                    }}
+                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 ${
+                      isChecked 
+                        ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-400/20' 
+                        : 'bg-white border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {}}
+                      className="w-4 h-4 text-amber-600 rounded mt-1 cursor-pointer"
+                    />
+
+                    <div className="flex-1 min-w-0 space-y-1 text-xs">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="font-mono font-bold px-2 py-0.5 rounded bg-white text-blue-700 border border-slate-200">
+                          {b.startTime} - {b.endTime}
+                        </span>
+                        <span className="font-extrabold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                          {b.roomName}
+                        </span>
+                      </div>
+
+                      <h4 className="font-black text-slate-900 text-sm truncate">
+                        {b.title}
+                      </h4>
+
+                      <div className="text-slate-600 text-[11px] flex flex-wrap gap-x-3 gap-y-0.5">
+                        <span><strong>{lang === 'th' ? 'ประธาน:' : 'Chủ trì:'}</strong> {b.hostName || b.bookedByName}</span>
+                        <span><strong>{lang === 'th' ? 'วันที่:' : 'Ngày:'}</strong> {b.date}{isMultiDay ? ` ${lang === 'th' ? 'ถึง' : 'đến'} ${b.endDate}` : ''}</span>
+                        <span><strong>{lang === 'th' ? 'จำนวน:' : 'Số người:'}</strong> {b.participantsCount}</span>
+                        {b.catering?.hasCatering && <span className="font-bold text-amber-800">🍱 Có F&B</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <form onSubmit={handleBatchApproveSubmit} className="pt-3 border-t border-slate-200 space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-700 mb-1 font-bold">
+                    {lang === 'th' ? 'ชื่อผู้ใช้ (duypt / yaitp):' : 'Tài khoản (duypt / yaitp):'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={batchUser}
+                    onChange={(e) => setBatchUser(e.target.value)}
+                    placeholder="duypt / yaitp..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 mb-1 font-bold">
+                    {lang === 'th' ? 'รหัสผ่าน:' : 'Mật khẩu:'}
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={batchPass}
+                    onChange={(e) => setBatchPass(e.target.value)}
+                    placeholder="Mật khẩu..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowBatchModal(false)}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors cursor-pointer"
+                >
+                  {t.msg_close}
+                </button>
+                <button
+                  type="submit"
+                  disabled={selectedBatchIds.length === 0}
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-xl font-black transition-all shadow-sm cursor-pointer"
+                >
+                  {lang === 'th' ? `อนุมัติ ${selectedBatchIds.length} รายการที่เลือก` : `Phê Duyệt ${selectedBatchIds.length} Cuộc Họp`}
                 </button>
               </div>
             </form>
@@ -1506,175 +1655,6 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ================= MODAL PHÊ DUYỆT HÀNG LOẠT ================= */}
-      {showBatchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/65 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 w-full max-w-xl shadow-2xl space-y-4 text-slate-900 max-h-[92vh] flex flex-col">
-            {/* Header popup */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
-                  🔔
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-base text-slate-900">
-                    {lang === 'th' ? 'ศูนย์อนุมัติการจองห้องประชุม' : 'Trung Tâm Phê Duyệt Đặt Phòng'}
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    {lang === 'th' ? `มี ${pendingBookings.length} รายการกำลังรออนุมัติ` : `Hiện có ${pendingBookings.length} cuộc họp đang chờ phê duyệt`}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowBatchModal(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {batchError && (
-              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold">
-                ❌ {batchError}
-              </div>
-            )}
-
-            {/* Thanh công cụ chọn tất cả / bỏ chọn */}
-            <div className="flex items-center justify-between text-xs font-bold px-1">
-              <label className="flex items-center gap-2 cursor-pointer text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={selectedBatchIds.length === pendingBookings.length && pendingBookings.length > 0}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedBatchIds(pendingBookings.map(b => b.id));
-                    } else {
-                      setSelectedBatchIds([]);
-                    }
-                  }}
-                  className="w-4 h-4 text-amber-600 rounded"
-                />
-                <span>{lang === 'th' ? 'เลือกทั้งหมด' : 'Chọn tất cả'} ({selectedBatchIds.length}/{pendingBookings.length})</span>
-              </label>
-
-              {selectedBatchIds.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedBatchIds([])}
-                  className="text-slate-400 hover:text-rose-600"
-                >
-                  {lang === 'th' ? 'ยกเลิกการเลือก' : 'Bỏ chọn hết'}
-                </button>
-              )}
-            </div>
-
-            {/* Danh sách các cuộc họp chờ duyệt có Checkbox */}
-            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-[45vh]">
-              {pendingBookings.map(b => {
-                const isChecked = selectedBatchIds.includes(b.id);
-                const isMultiDay = b.endDate && b.endDate !== b.date;
-
-                return (
-                  <div
-                    key={b.id}
-                    onClick={() => {
-                      setSelectedBatchIds(prev => 
-                        prev.includes(b.id) ? prev.filter(id => id !== b.id) : [...prev, b.id]
-                      );
-                    }}
-                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 ${
-                      isChecked 
-                        ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-400/20' 
-                        : 'bg-white border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => {}} // Handled by div click
-                      className="w-4 h-4 text-amber-600 rounded mt-1 cursor-pointer"
-                    />
-
-                    <div className="flex-1 min-w-0 space-y-1 text-xs">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span className="font-mono font-bold px-2 py-0.5 rounded bg-white text-blue-700 border border-slate-200">
-                          {b.startTime} - {b.endTime}
-                        </span>
-                        <span className="font-extrabold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                          {b.roomName}
-                        </span>
-                      </div>
-
-                      <h4 className="font-black text-slate-900 text-sm truncate">
-                        {b.title}
-                      </h4>
-
-                      <div className="text-slate-600 text-[11px] flex flex-wrap gap-x-3 gap-y-0.5">
-                        <span><strong>{lang === 'th' ? 'ประธาน:' : 'Chủ trì:'}</strong> {b.hostName || b.bookedByName}</span>
-                        <span><strong>{lang === 'th' ? 'วันที่:' : 'Ngày:'}</strong> {b.date}{isMultiDay ? ` ${lang === 'th' ? 'ถึง' : 'đến'} ${b.endDate}` : ''}</span>
-                        <span><strong>{lang === 'th' ? 'จำนวน:' : 'Số người:'}</strong> {b.participantsCount}</span>
-                        {b.catering?.hasCatering && <span className="font-bold text-amber-800">🍱 Có F&B</span>}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Form đăng nhập tài khoản duyệt (Duyên hoặc Yai) */}
-            <form onSubmit={handleBatchApproveSubmit} className="pt-3 border-t border-slate-200 space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-slate-700 mb-1 font-bold">
-                    {lang === 'th' ? 'ชื่อผู้ใช้ (duypt / yaitp):' : 'Tài khoản (duypt / yaitp):'}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={batchUser}
-                    onChange={(e) => setBatchUser(e.target.value)}
-                    placeholder="duypt / yaitp..."
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 mb-1 font-bold">
-                    {lang === 'th' ? 'รหัสผ่าน:' : 'Mật khẩu:'}
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    value={batchPass}
-                    onChange={(e) => setBatchPass(e.target.value)}
-                    placeholder="Mật khẩu..."
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowBatchModal(false)}
-                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors cursor-pointer"
-                >
-                  {t.msg_close}
-                </button>
-                <button
-                  type="submit"
-                  disabled={selectedBatchIds.length === 0}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-xl font-black transition-all shadow-sm cursor-pointer"
-                >
-                  {lang === 'th' ? `อนุมัติ ${selectedBatchIds.length} รายการที่เลือก` : `Phê Duyệt ${selectedBatchIds.length} Cuộc Họp`}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
