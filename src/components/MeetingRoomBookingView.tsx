@@ -27,6 +27,21 @@ import { exportRoomBookingsToExcel, exportCateringReportToExcel } from '../utils
 import { soundFX } from '../utils/audio';
 import { deleteRoomBookingInCloud, saveRoomBookingToCloud, saveTrainingSessionToCloud } from '../services/firebaseSync';
 
+// States cho tính năng Phê Duyệt Hàng Loạt
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
+  const [batchUser, setBatchUser] = useState('');
+  const [batchPass, setBatchPass] = useState('');
+  const [batchError, setBatchError] = useState('');
+
+  // Danh sách các cuộc họp đang CHỜ DUYỆT (từ hôm nay trở đi)
+  const pendingBookings = useMemo(() => {
+    return bookings.filter(b => {
+      const end = b.endDate || b.date;
+      return b.status === 'pending' && end >= todayStr;
+    });
+  }, [bookings, todayStr]);
+
 // Danh sách tài khoản có quyền duyệt đặt phòng họp
 const APPROVERS = [
   { username: 'duypt', pass: 'duypt@356', name: 'Phan Thị Mỹ Duyên', code: '210190653' },
@@ -389,6 +404,92 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
     );
   };
 
+  // HÀM PHÊ DUYỆT HÀNG LOẠT (CHỌN CHECKBOX TỪNG CUỘC HỌP)
+  const handleBatchApproveSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBatchError('');
+
+    if (selectedBatchIds.length === 0) {
+      soundFX.playError();
+      setBatchError(lang === 'th' ? 'กรุณาเลือกอย่างน้อย 1 รายการเพื่ออนุมัติ!' : 'Vui lòng chọn ít nhất 1 cuộc họp để duyệt!');
+      return;
+    }
+
+    const matchedApprover = APPROVERS.find(
+      u => u.username.toLowerCase() === batchUser.trim().toLowerCase() && u.pass === batchPass.trim()
+    );
+
+    if (!matchedApprover) {
+      soundFX.playError();
+      setBatchError(lang === 'th' ? 'ชื่อผู้ใช้หรือรหัสผ่านผู้อนุมัติไม่ถูกต้อง!' : 'Sai tên đăng nhập hoặc mật khẩu người duyệt!');
+      return;
+    }
+
+    const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + todayStr;
+    const approverText = `${matchedApprover.name} (${matchedApprover.username})`;
+
+    try {
+      // 1. Cập nhật các booking được chọn thành confirmed
+      const updatedBookingsList: RoomBooking[] = [];
+      const autoSessionsToCreate: TrainingSession[] = [];
+
+      setBookings(prev => prev.map(b => {
+        if (selectedBatchIds.includes(b.id)) {
+          const updated = {
+            ...b,
+            status: 'confirmed' as const,
+            approvedBy: approverText,
+            approvedAt: nowStr
+          };
+          updatedBookingsList.push(updated);
+
+          // Tạo buổi điểm danh tự động tương ứng
+          autoSessionsToCreate.push({
+            id: `session_auto_${updated.id}`,
+            title: updated.title,
+            instructor: updated.hostName || updated.bookedByName,
+            location: updated.roomName,
+            date: updated.date,
+            startTime: updated.startTime,
+            endTime: updated.endTime,
+            type: 'meeting',
+            createdAt: new Date().toISOString(),
+            status: 'active'
+          });
+
+          return updated;
+        }
+        return b;
+      }));
+
+      // 2. Thêm các buổi họp tự động vào state sessions
+      if (setSessions && autoSessionsToCreate.length > 0) {
+        setSessions(prev => [...autoSessionsToCreate, ...prev]);
+      }
+
+      // 3. ĐỒNG BỘ LÊN CLOUD FIREBASE
+      for (const b of updatedBookingsList) {
+        await saveRoomBookingToCloud(b);
+      }
+      for (const s of autoSessionsToCreate) {
+        await saveTrainingSessionToCloud(s);
+      }
+
+      soundFX.playScanSuccess();
+      setShowBatchModal(false);
+      setSelectedBatchIds([]);
+      setBatchUser('');
+      setBatchPass('');
+      alert(lang === 'th'
+        ? `✅ อนุมัติสำเร็จ ${updatedBookingsList.length} รายการ!\nโดย ${matchedApprover.name}`
+        : `✅ ĐÃ PHÊ DUYỆT THÀNH CÔNG ${updatedBookingsList.length} CUỘC HỌP!\n\nNgười duyệt: ${matchedApprover.name}\nĐã tự động tạo các form điểm danh tương ứng bên tab Điểm Danh.`
+      );
+    } catch (err) {
+      console.error('Lỗi duyệt hàng loạt:', err);
+      alert('Có lỗi xảy ra khi đồng bộ lên máy chủ.');
+    }
+  };
+
   // Hủy/Xóa đặt phòng
   const handleCancelBooking = async (booking: RoomBooking) => {
     const promptMsg = lang === 'th'
@@ -491,6 +592,22 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 <span>{t.room_btn_list_view}</span>
               </button>
             </div>
+
+            {pendingBookings.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedBatchIds(pendingBookings.map(b => b.id)); // Mặc định chọn tất cả
+                  setShowBatchModal(true);
+                  setBatchError('');
+                }}
+                className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all animate-bounce cursor-pointer"
+                title="Mở danh sách duyệt hàng loạt các cuộc họp đang chờ"
+              >
+                <span>🔔</span>
+                <span>{lang === 'th' ? `อนุมัติกลุ่ม (${pendingBookings.length})` : `Duyệt Nhanh (${pendingBookings.length})`}</span>
+              </button>
+            )}
 
             <button
               onClick={() => {
@@ -1389,6 +1506,175 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL PHÊ DUYỆT HÀNG LOẠT ================= */}
+      {showBatchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/65 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 w-full max-w-xl shadow-2xl space-y-4 text-slate-900 max-h-[92vh] flex flex-col">
+            {/* Header popup */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                  🔔
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900">
+                    {lang === 'th' ? 'ศูนย์อนุมัติการจองห้องประชุม' : 'Trung Tâm Phê Duyệt Đặt Phòng'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {lang === 'th' ? `มี ${pendingBookings.length} รายการกำลังรออนุมัติ` : `Hiện có ${pendingBookings.length} cuộc họp đang chờ phê duyệt`}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowBatchModal(false)}
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {batchError && (
+              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold">
+                ❌ {batchError}
+              </div>
+            )}
+
+            {/* Thanh công cụ chọn tất cả / bỏ chọn */}
+            <div className="flex items-center justify-between text-xs font-bold px-1">
+              <label className="flex items-center gap-2 cursor-pointer text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={selectedBatchIds.length === pendingBookings.length && pendingBookings.length > 0}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedBatchIds(pendingBookings.map(b => b.id));
+                    } else {
+                      setSelectedBatchIds([]);
+                    }
+                  }}
+                  className="w-4 h-4 text-amber-600 rounded"
+                />
+                <span>{lang === 'th' ? 'เลือกทั้งหมด' : 'Chọn tất cả'} ({selectedBatchIds.length}/{pendingBookings.length})</span>
+              </label>
+
+              {selectedBatchIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedBatchIds([])}
+                  className="text-slate-400 hover:text-rose-600"
+                >
+                  {lang === 'th' ? 'ยกเลิกการเลือก' : 'Bỏ chọn hết'}
+                </button>
+              )}
+            </div>
+
+            {/* Danh sách các cuộc họp chờ duyệt có Checkbox */}
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-[45vh]">
+              {pendingBookings.map(b => {
+                const isChecked = selectedBatchIds.includes(b.id);
+                const isMultiDay = b.endDate && b.endDate !== b.date;
+
+                return (
+                  <div
+                    key={b.id}
+                    onClick={() => {
+                      setSelectedBatchIds(prev => 
+                        prev.includes(b.id) ? prev.filter(id => id !== b.id) : [...prev, b.id]
+                      );
+                    }}
+                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 ${
+                      isChecked 
+                        ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-400/20' 
+                        : 'bg-white border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {}} // Handled by div click
+                      className="w-4 h-4 text-amber-600 rounded mt-1 cursor-pointer"
+                    />
+
+                    <div className="flex-1 min-w-0 space-y-1 text-xs">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="font-mono font-bold px-2 py-0.5 rounded bg-white text-blue-700 border border-slate-200">
+                          {b.startTime} - {b.endTime}
+                        </span>
+                        <span className="font-extrabold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                          {b.roomName}
+                        </span>
+                      </div>
+
+                      <h4 className="font-black text-slate-900 text-sm truncate">
+                        {b.title}
+                      </h4>
+
+                      <div className="text-slate-600 text-[11px] flex flex-wrap gap-x-3 gap-y-0.5">
+                        <span><strong>{lang === 'th' ? 'ประธาน:' : 'Chủ trì:'}</strong> {b.hostName || b.bookedByName}</span>
+                        <span><strong>{lang === 'th' ? 'วันที่:' : 'Ngày:'}</strong> {b.date}{isMultiDay ? ` ${lang === 'th' ? 'ถึง' : 'đến'} ${b.endDate}` : ''}</span>
+                        <span><strong>{lang === 'th' ? 'จำนวน:' : 'Số người:'}</strong> {b.participantsCount}</span>
+                        {b.catering?.hasCatering && <span className="font-bold text-amber-800">🍱 Có F&B</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Form đăng nhập tài khoản duyệt (Duyên hoặc Yai) */}
+            <form onSubmit={handleBatchApproveSubmit} className="pt-3 border-t border-slate-200 space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-700 mb-1 font-bold">
+                    {lang === 'th' ? 'ชื่อผู้ใช้ (duypt / yaitp):' : 'Tài khoản (duypt / yaitp):'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={batchUser}
+                    onChange={(e) => setBatchUser(e.target.value)}
+                    placeholder="duypt / yaitp..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 mb-1 font-bold">
+                    {lang === 'th' ? 'รหัสผ่าน:' : 'Mật khẩu:'}
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={batchPass}
+                    onChange={(e) => setBatchPass(e.target.value)}
+                    placeholder="Mật khẩu..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowBatchModal(false)}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors cursor-pointer"
+                >
+                  {t.msg_close}
+                </button>
+                <button
+                  type="submit"
+                  disabled={selectedBatchIds.length === 0}
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-xl font-black transition-all shadow-sm cursor-pointer"
+                >
+                  {lang === 'th' ? `อนุมัติ ${selectedBatchIds.length} รายการที่เลือก` : `Phê Duyệt ${selectedBatchIds.length} Cuộc Họp`}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
