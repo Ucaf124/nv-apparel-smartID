@@ -27,6 +27,33 @@ export const PRESET_ROOMS = [
     equipment: ['Máy chiếu 4K Ultra HD', 'Hệ thống âm thanh hội trường', 'Micro không dây', 'Máy lạnh 2.5 HP'],
     description: 'Phòng họp lớn chuyên dụng cho đào tạo nhân viên, họp tổng kết xưởng và tiếp đón khách đối tác.',
     color: 'from-emerald-600 to-teal-700'
+  },
+  {
+    id: 'cfa_nv1',
+    name: 'Phòng Họp CFA - NV1',
+    capacity: 15,
+    location: 'Khu vực CFA _ Nhà máy NV1',
+    equipment: ['Smart TV', 'Bảng trắng', 'Máy lạnh'],
+    description: 'Phòng họp chuyên dụng cho kiểm tra mẫu, họp kỹ thuật CFA và thảo luận chuyền may NV1.',
+    color: 'from-amber-600 to-orange-700'
+  },
+  {
+    id: 'cfa_nv2',
+    name: 'Phòng Họp CFA - NV2',
+    capacity: 15,
+    location: 'Khu vực CFA _ Nhà máy NV2',
+    equipment: ['Smart TV', 'Bảng trắng', 'Máy lạnh'],
+    description: 'Phòng họp chuyên dụng cho kiểm tra mẫu, họp kỹ thuật CFA và thảo luận chuyền may NV2.',
+    color: 'from-purple-600 to-violet-700'
+  },
+  {
+    id: 'customer_room_nv2',
+    name: 'CUSTOMER ROOM NV2',
+    capacity: 20,
+    location: 'Khu vực tiếp khách đối tác _ Nhà máy NV2',
+    equipment: ['Smart TV màn hình lớn', 'Hệ thống họp trực tuyến VIP', 'Bảng Flipchart', 'Máy lạnh'],
+    description: 'Phòng tiếp đón khách hàng, đối tác nhãn hàng quốc tế và họp thương mại nhà máy NV2.',
+    color: 'from-rose-600 to-pink-700'
   }
 ];
 
