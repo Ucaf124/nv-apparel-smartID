@@ -659,7 +659,12 @@ export const MeetingRoomBookingView: React.FC<MeetingRoomBookingViewProps> = ({
             >
               {PRESET_ROOMS.map(r => (
                 <option key={r.id} value={r.id}>
-                  {lang === 'th' ? (r.id === 'vinh_ha_long' ? 'ห้องประชุมอ่าวฮาลอง (NV1)' : 'ห้องประชุมบานาฮิลล์ (NV2)') : r.name}
+                  {lang === 'th' ? (
+                    r.id === 'vinh_ha_long' ? 'ห้องประชุมอ่าวฮาลอง (NV1)' :
+                    r.id === 'ba_na_hill' ? 'ห้องประชุมบานาฮิลล์ (NV2)' :
+                    r.id === 'cfa_nv1' ? 'ห้องประชุม CFA - NV1' :
+                    r.id === 'cfa_nv2' ? 'ห้องประชุม CFA - NV2' : 'ห้องรับรองลูกค้า CUSTOMER ROOM NV2'
+                  ) : r.name}
                 </option>
               ))}
             </select>
