@@ -48,11 +48,11 @@ export const PRESET_ROOMS = [
   },
   {
     id: 'customer_room_nv2',
-    name: 'CUSTOMER ROOM NV2',
+    name: 'Phòng Khách Hàng NV2',
     capacity: 20,
     location: 'Khu vực tiếp khách đối tác _ Nhà máy NV2',
-    equipment: ['Smart TV màn hình lớn', 'Hệ thống họp trực tuyến VIP', 'Bảng Flipchart', 'Máy lạnh'],
-    description: 'Phòng tiếp đón khách hàng, đối tác nhãn hàng quốc tế và họp thương mại nhà máy NV2.',
+    equipment: ['Smart TV màn hình lớn', 'Hệ thống họp trực tuyến', 'Bảng trắng', 'Máy lạnh'],
+    description: 'Phòng tiếp đón khách hàng, đối tác nhãn hàng quốc tế nhà máy NV2.',
     color: 'from-rose-600 to-pink-700'
   }
 ];
