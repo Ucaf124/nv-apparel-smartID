@@ -31,7 +31,7 @@ export const PRESET_ROOMS = [
   {
     id: 'cfa_nv1',
     name: 'Phòng Họp CFA - NV1',
-    capacity: 15,
+    capacity: 5,
     location: 'Khu vực CFA _ Nhà máy NV1',
     equipment: ['Smart TV', 'Bảng trắng', 'Máy lạnh'],
     description: 'Phòng họp chuyên dụng cho kiểm tra mẫu, họp kỹ thuật CFA và thảo luận chuyền may NV1.',
@@ -40,7 +40,7 @@ export const PRESET_ROOMS = [
   {
     id: 'cfa_nv2',
     name: 'Phòng Họp CFA - NV2',
-    capacity: 15,
+    capacity: 5,
     location: 'Khu vực CFA _ Nhà máy NV2',
     equipment: ['Smart TV', 'Bảng trắng', 'Máy lạnh'],
     description: 'Phòng họp chuyên dụng cho kiểm tra mẫu, họp kỹ thuật CFA và thảo luận chuyền may NV2.',
@@ -49,7 +49,7 @@ export const PRESET_ROOMS = [
   {
     id: 'customer_room_nv2',
     name: 'Phòng Khách Hàng NV2',
-    capacity: 20,
+    capacity: 10,
     location: 'Khu vực tiếp khách đối tác _ Nhà máy NV2',
     equipment: ['Smart TV màn hình lớn', 'Hệ thống họp trực tuyến', 'Bảng trắng', 'Máy lạnh'],
     description: 'Phòng tiếp đón khách hàng, đối tác nhãn hàng quốc tế nhà máy NV2.',
