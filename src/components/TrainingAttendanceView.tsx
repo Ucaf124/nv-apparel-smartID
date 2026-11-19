@@ -966,6 +966,9 @@ export const TrainingAttendanceView: React.FC<TrainingAttendanceViewProps> = ({
                 >
                   <option value="Phòng Họp Vịnh Hạ Long (NV1)">{t.att_modal_loc_halong}</option>
                   <option value="Phòng Họp Bà Nà Hill (NV2)">{t.att_modal_loc_bana}</option>
+                  <option value="Phòng Họp CFA - NV1">Phòng Họp CFA - NV1</option>
+                  <option value="Phòng Họp CFA - NV2">Phòng Họp CFA - NV2</option>
+                  <option value="CUSTOMER ROOM NV2">CUSTOMER ROOM NV2</option>
                   <option value="other">{t.att_modal_loc_other}</option>
                 </select>
               
