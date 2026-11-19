@@ -18,7 +18,7 @@ export const translations = {
 
     // Tab Navigation
     tab_attendance: 'Điểm Danh Đào Tạo & Họp',
-    tab_room_booking: 'Đặt Phòng Họp (Hạ Long & Bà Nà)',
+    tab_room_booking: 'Đặt Phòng Họp',
     tab_department_pass: 'Check-In / Out Bộ Phận',
     tab_employees: 'Danh Sách Công Nhân & Excel',
 
@@ -55,7 +55,7 @@ export const translations = {
 
     // Tab 2: Đặt Phòng Họp
     room_banner_badge: 'Quy Trình Duyệt Phòng Họp Nhà Máy',
-    room_title: 'Phòng Họp Vịnh Hạ Long & Bà Nà Hill',
+    room_title: 'Đặt Phòng Họp Nhà Máy',
     room_approver_subtitle: 'Phê duyệt bởi: Chị Phan Thị Mỹ Duyên hoặc Anh Thaisit Phawang (Yai)',
     room_btn_calendar_view: 'Lịch Tháng',
     room_btn_list_view: 'Lịch Theo Ngày',
@@ -161,7 +161,7 @@ export const translations = {
 
     // Tab Navigation
     tab_attendance: 'เช็คชื่อฝึกอบรม & ประชุม',
-    tab_room_booking: 'จองห้องประชุม (ฮาลอง & บานา)',
+    tab_room_booking: 'จองห้องประชุม',
     tab_department_pass: 'บันทึก เข้า/ออก แผนก',
     tab_employees: 'รายชื่อพนักงาน & Excel',
 
@@ -198,7 +198,7 @@ export const translations = {
 
     // Tab 2: Đặt Phòng Họp
     room_banner_badge: 'ขั้นตอนการอนุมัติห้องประชุมโรงงาน',
-    room_title: 'ห้องประชุมอ่าวฮาลอง & บานาฮิลล์',
+    room_title: 'จองห้องประชุมโรงงาน',
     room_approver_subtitle: 'อนุมัติโดย: คุณ Phan Thị Mỹ Duyên หรือ คุณ Thaisit Phawang (Yai)',
     room_btn_calendar_view: 'มุมมองปฏิทินรายเดือน',
     room_btn_list_view: 'มุมมองรายวัน',
